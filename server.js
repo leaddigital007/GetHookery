@@ -12,6 +12,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Privacy Policy маршрут
+app.get('/privacy.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'privacy.html'));
+});
+
 // Запуск сервера
 app.listen(PORT, () => {
     console.log(`🚀 GetHookery Agency running on port ${PORT}`);
