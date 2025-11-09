@@ -18,10 +18,8 @@ window.addEventListener('scroll', function() {
 });
 
 // Form submission
-document.getElementById('contactForm').addEventListener('submit', function(e) {
+document.getElementById('contactForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
-    // Get form data
     const formData = {
         name: document.getElementById('name').value,
         email: document.getElementById('email').value,
@@ -29,29 +27,28 @@ document.getElementById('contactForm').addEventListener('submit', function(e) {
         revenue: document.getElementById('revenue').value,
         message: document.getElementById('message').value
     };
-    
-    // Enhanced validation
     if (!formData.name || !formData.email || !formData.website || !formData.revenue || !formData.message) {
         alert('Please fill in all required fields to book your strategy call.');
         return;
     }
-    
-    // Simulate form submission
     const submitBtn = document.querySelector('.form-submit');
     const originalText = submitBtn.innerHTML;
-    
     submitBtn.innerHTML = '<span>Sending...</span><i class="fas fa-spinner fa-spin"></i>';
     submitBtn.disabled = true;
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+        const res = await fetch('/api/contact', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+            throw new Error(data && data.error ? data.error : 'Failed to submit');
+        }
         submitBtn.innerHTML = '<span>Message Sent!</span><i class="fas fa-check"></i>';
         submitBtn.style.background = 'linear-gradient(135deg, #00C851 0%, #007E33 100%)';
-        
-        // Reset form
         document.getElementById('contactForm').reset();
-        
-        // Show success message
+        // show success toast
         const successMessage = document.createElement('div');
         successMessage.style.cssText = `
             position: fixed;
@@ -65,22 +62,18 @@ document.getElementById('contactForm').addEventListener('submit', function(e) {
             z-index: 10000;
             animation: slideInRight 0.5s ease;
         `;
-        successMessage.innerHTML = '<i class="fas fa-check-circle"></i> Strategy call booked! Check your email for next steps.';
+        successMessage.innerHTML = '<i class="fas fa-check-circle"></i> Message sent! We will get back to you shortly.';
         document.body.appendChild(successMessage);
-        
-        // Remove success message after 3 seconds
-        setTimeout(() => {
-            successMessage.remove();
-        }, 3000);
-        
-        // Reset button after 2 seconds
+        setTimeout(() => successMessage.remove(), 3000);
+    } catch (err) {
+        alert('Submission failed: ' + err.message);
+    } finally {
         setTimeout(() => {
             submitBtn.innerHTML = originalText;
             submitBtn.style.background = 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)';
             submitBtn.disabled = false;
-        }, 2000);
-        
-    }, 1500);
+        }, 1200);
+    }
 });
 
 // Add CSS for slide animation
