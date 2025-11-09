@@ -76,7 +76,7 @@ document.getElementById('contactForm').addEventListener('submit', function(e) {
         // Reset button after 2 seconds
         setTimeout(() => {
             submitBtn.innerHTML = originalText;
-            submitBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            submitBtn.style.background = 'linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%)';
             submitBtn.disabled = false;
         }, 2000);
         
@@ -99,13 +99,11 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Add click events to all CTA buttons
-document.querySelectorAll('.cta-btn').forEach(btn => {
-    if (!btn.classList.contains('form-submit')) {
-        btn.addEventListener('click', function() {
-            scrollToForm();
-        });
-    }
+// Add click events to CTA buttons that explicitly request contact scroll
+document.querySelectorAll('.cta-btn[data-scroll="contact"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        scrollToForm();
+    });
 });
 
 // Animate elements on scroll
@@ -267,6 +265,28 @@ document.addEventListener('DOMContentLoaded', function() {
             typeWriter(heroTitle, originalText, 30);
         }, 500);
     }
+    
+    // Initialize accordions
+    document.querySelectorAll('.accordion').forEach(acc => {
+        acc.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const item = header.closest('.accordion-item');
+                const isOpen = item.classList.contains('open');
+                // Close siblings
+                acc.querySelectorAll('.accordion-item.open').forEach(openItem => {
+                    if (openItem !== item) openItem.classList.remove('open');
+                });
+                // Toggle current
+                if (!isOpen) {
+                    item.classList.add('open');
+                    header.setAttribute('aria-expanded', 'true');
+                } else {
+                    item.classList.remove('open');
+                    header.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    });
 });
 
 // Console message for developers

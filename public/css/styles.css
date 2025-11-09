@@ -166,6 +166,28 @@ body {
     background-clip: text;
 }
 
+/* Nav links */
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    list-style: none;
+    margin: 0 24px 0 32px;
+    padding: 0;
+}
+
+.nav-links a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: color 0.25s ease;
+}
+
+.nav-links a:hover {
+    color: #ffffff;
+}
+
 /* Buttons */
 .cta-btn {
     display: inline-flex;
@@ -961,8 +983,292 @@ section {
     color: white;
 }
 
+/* Generic content sections and new components */
+.content-section {
+    background: #0a0a0a;
+}
+
+.content-section.section-alt {
+    background: #111111;
+}
+
+.content-section.section-accent {
+    background: linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%);
+    color: #ffffff;
+}
+
+.content-section.section-accent .section-header h2,
+.content-section.section-accent .section-header p {
+    color: #ffffff;
+}
+
+section, .content-section {
+    scroll-margin-top: 90px;
+}
+
+.text-content {
+    max-width: 900px;
+    margin: 0 auto;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 18px;
+}
+
+.text-content p + p {
+    margin-top: 14px;
+}
+
+.text-content a {
+    color: #FFD1B8;
+    text-decoration: none;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.35);
+}
+
+.text-content a:hover {
+    color: #ffffff;
+    border-bottom-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Intro section layout */
+.intro-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 40px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .intro-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+}
+
+.intro-copy .lead {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.92);
+    margin-bottom: 16px;
+}
+
+.points {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0 0;
+    display: grid;
+    gap: 10px;
+}
+
+.points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #cccccc;
+}
+
+.points li::before {
+    content: "✔";
+    color: #FF8C42;
+    margin-top: 2px;
+}
+
+.intro-copy .note {
+    margin-top: 16px;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.intro-panel {
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(42, 42, 42, 0.9) 100%);
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.12);
+}
+
+.intro-panel h3 {
+    font-size: 16px;
+    color: #ffffff;
+    margin: 0 0 10px 0;
+}
+
+.intro-panel ul {
+    margin: 0 0 14px 18px;
+    color: #cccccc;
+}
+
+.intro-panel .divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255, 107, 53, 0.3), rgba(255, 140, 66, 0.15));
+    margin: 12px 0 16px 0;
+    border-radius: 1px;
+}
+/* Industries */
+.industry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.industry-card {
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.9) 0%, rgba(42, 42, 42, 0.85) 100%);
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 10px 30px rgba(255, 107, 53, 0.12);
+}
+
+.industry-card h3 {
+    color: #ffffff;
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.industry-card p {
+    color: #cccccc;
+    font-size: 16px;
+}
+
+/* Contact details */
+.contact-details {
+    margin-top: 24px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Accordions */
+.accordion {
+    display: grid;
+    gap: 16px;
+}
+
+.accordion-item {
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(42, 42, 42, 0.9) 100%);
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.accordion-header {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+    background: transparent;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    border: 0;
+}
+
+.accordion-header i {
+    transition: transform 0.25s ease;
+}
+
+.accordion-item.open .accordion-header i {
+    transform: rotate(180deg);
+}
+
+.accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, padding 0.35s ease;
+    padding: 0 22px;
+}
+
+.accordion-item.open .accordion-body {
+    padding: 0 22px 18px 22px;
+    max-height: 1000px;
+}
+
+.accordion-body h4 {
+    color: #ffffff;
+    margin: 18px 0 8px 0;
+    font-size: 16px;
+}
+
+.accordion-body p {
+    color: #cccccc;
+    font-size: 15px;
+}
+
+/* Case studies (detailed) */
+.case-list {
+    display: grid;
+    gap: 24px;
+}
+
+.case-item {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 24px;
+    color: #ffffff;
+}
+
+.section-accent .case-item p,
+.section-accent .case-item li {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.case-item h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.case-item ul {
+    margin-left: 18px;
+    margin-top: 8px;
+}
+
+/* Testimonials */
+.testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+}
+
+.testimonial-card {
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(42, 42, 42, 0.9) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    padding: 22px;
+}
+
+.testimonial-card p {
+    color: rgba(255, 255, 255, 0.9);
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.testimonial-card .author {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+/* Insights teaser */
+.insights-teaser ul {
+    display: grid;
+    gap: 10px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.insights-teaser li {
+    color: rgba(255, 255, 255, 0.9);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    .nav-content {
+        gap: 12px;
+    }
+    .nav-links {
+        display: none;
+    }
     .hero-cta {
         flex-direction: column;
         align-items: center;

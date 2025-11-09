@@ -38,6 +38,8 @@
 
 **Production**: https://gethookery-agency-3cc368fea69d.herokuapp.com/
 
+> ✅ **Auto-deploy tested on 2024-12-28** - GitHub → Heroku integration working!
+
 ## 📱 Local Development
 
 ```bash

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GetHookery - We Build Brands That Convert</title>
-    <meta name="description" content="Marketing agency focused on conversion-driven growth for US & European markets. Performance strategy, creative optimization, and traffic management.">
+    <title>gethookery – Lead Generation & Performance Marketing Consulting</title>
+    <meta name="description" content="Full-funnel lead generation systems. Strategic growth. Measurable results. Performance marketing consulting by gethookery.">
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -34,10 +34,20 @@
             <div class="container">
                 <div class="nav-content">
                     <div class="logo">
-                        <span class="logo-text">GetHookery</span>
+                        <span class="logo-text">gethookery</span>
                     </div>
-                    <button class="cta-btn nav-cta">
-                        <span>Book Strategy Call</span>
+                    <ul class="nav-links">
+                        <li><a href="#intro">Overview</a></li>
+                        <li><a href="#why">Why Us</a></li>
+                        <li><a href="#industries">Industries</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#case-studies">Case Studies</a></li>
+                        <li><a href="#process">Process</a></li>
+                        <li><a href="#faqs">FAQs</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                    <button class="cta-btn nav-cta" onclick="scrollToForm()">
+                        <span>Schedule a Consultation</span>
                         <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
@@ -50,19 +60,19 @@
         <div class="container">
             <div class="hero-content">
                 <h1 class="hero-title">
-                    We Build Brands That 
-                    <span class="highlight">Convert.</span>
+                    Lead Generation & Performance Marketing 
+                    <span class="highlight">Consulting</span>
                 </h1>
                 <p class="hero-subtitle">
-                    From creatives to websites to paid traffic — we craft full-funnel growth systems that generate revenue.
+                    Full-Funnel Systems, Strategic Growth, Measurable Results
                 </p>
                 <div class="hero-cta">
                     <button class="cta-btn primary" onclick="scrollToForm()">
-                        <span>Book Strategy Call</span>
+                        <span>Schedule a Consultation</span>
                         <i class="fas fa-calendar"></i>
                     </button>
-                    <button class="cta-btn secondary">
-                        <span>Let's Build Your Growth Engine</span>
+                    <button class="cta-btn secondary" onclick="document.querySelector('#services').scrollIntoView({behavior:'smooth'})">
+                        <span>Explore Services</span>
                         <i class="fas fa-rocket"></i>
                     </button>
                 </div>
@@ -71,206 +81,339 @@
         <div class="hero-bg"></div>
     </section>
 
-    <!-- Mission Section -->
-    <section class="mission" id="mission">
+    <!-- Brand Overview -->
+    <section class="content-section section-alt" id="intro">
         <div class="container">
             <div class="section-header">
-                <h2>Drive Greater ROI with Sales-Boosting Marketing</h2>
-                <p>We don't just create pretty ads. We engineer profit-generating systems that scale your business with proven strategies.</p>
+                <h2>Lead Generation & Performance Marketing Consulting</h2>
+                <p>Full-Funnel Systems, Strategic Growth, Measurable Results</p>
             </div>
-            
+            <div class="intro-grid">
+                <div class="intro-copy">
+                    <p class="lead">gethookery is a performance-driven marketing consultancy that builds full-funnel lead generation systems to fuel your business growth. We specialize in delivering qualified leads and measurable outcomes for companies in Home Improvement, Legal, Finance, and Insurance sectors across the U.S. and Europe.</p>
+                    <ul class="points">
+                        <li>Multi‑channel paid traffic that reaches the right people at the right time</li>
+                        <li>In‑house quiz funnels that qualify and convert visitors into sales‑ready leads</li>
+                        <li>Advanced analytics and fractional CMO leadership for accountable growth</li>
+                    </ul>
+                    <p class="note">We turn marketing investments into predictable revenue pipelines. Our approach is professional, data‑driven, and outcome‑oriented – focused on strategies that drive high‑quality leads and clear ROI at every stage of the funnel.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Choose -->
+    <section class="content-section" id="why">
+        <div class="container">
+            <div class="section-header">
+                <h2>Why Choose gethookery?</h2>
+            </div>
             <div class="services-grid">
                 <div class="service-card">
-                    <div class="service-icon">🎯</div>
-                    <h3>Performance Strategy</h3>
-                    <p>Audit, funnels, UTM architecture that converts</p>
+                    <div class="service-icon">📊</div>
+                    <h3>Performance & ROI Focus</h3>
+                    <p>We believe marketing should be accountable. Our strategies are predicated on total accountability and measurable results – every campaign, every dollar, every action is optimized for ROI. We track the metrics that matter (leads, cost-per-lead, conversion rates, revenue impact) and relentlessly improve them.</p>
                 </div>
                 <div class="service-card">
-                    <div class="service-icon">🧠</div>
-                    <h3>Creative + CRO</h3>
-                    <p>High-converting websites, landing pages, UI/UX</p>
+                    <div class="service-icon">🧭</div>
+                    <h3>Full-Funnel Strategy</h3>
+                    <p>We design end-to-end funnels – from targeted Meta, TikTok, and Google ad campaigns to optimized landing pages, interactive quizzes, and automated follow-ups – ensuring no lead slips through the cracks.</p>
                 </div>
                 <div class="service-card">
-                    <div class="service-icon">📈</div>
-                    <h3>Traffic & Analytics</h3>
-                    <p>Ad launches, optimization, end-to-end analytics</p>
+                    <div class="service-icon">🏁</div>
+                    <h3>Strategic Leadership</h3>
+                    <p>We bring C‑suite level strategic thinking to every engagement. With our fractional CMO service, you gain executive-level guidance to steer campaigns and ensure marketing drives growth.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🤝</div>
+                    <h3>Trust & Transparency</h3>
+                    <p>We operate with full transparency and provide dashboards and reports regularly. We uphold strict compliance (GDPR, TCPA) and verify lead quality and consent at every step.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🏗️</div>
+                    <h3>Industry Expertise</h3>
+                    <p>We understand Home Improvement, Legal, Finance, and Insurance. Our strategies align to each industry’s audience and regulatory environment, ensuring relevance, trust, and competitive advantage.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- What We Do Section -->
-    <section class="what-we-do" id="services">
+    <!-- Industries -->
+    <section class="content-section section-alt" id="industries">
         <div class="container">
             <div class="section-header">
-                <h2>Leading Expertise with Verified Results</h2>
-                <p>Our proven services that win clients and dominate markets</p>
+                <h2>Industries We Serve</h2>
             </div>
-            
-            <div class="services-table">
-                <div class="service-row">
-                    <div class="service-name">Paid Traffic Mastery</div>
-                    <div class="service-description">FB / IG / TikTok / YouTube / Google Ads that scale profitably</div>
+            <div class="industry-grid">
+                <div class="industry-card">
+                    <h3>Home Improvement</h3>
+                    <p>From roofing and HVAC to kitchen remodels, we connect home services with homeowners ready to renovate. Exclusive, high‑intent leads become booked appointments and projects.</p>
                 </div>
-                <div class="service-row">
-                    <div class="service-name">High-Converting Funnels</div>
-                    <div class="service-description">Lightning-fast, responsive pages that turn visitors into buyers</div>
+                <div class="industry-card">
+                    <h3>Legal Services</h3>
+                    <p>We partner with firms (e.g. personal injury, family law, estate planning) to drive qualified inquiries. Compliant capture, better targeting, stronger pipelines.</p>
                 </div>
-                <div class="service-row">
-                    <div class="service-name">Conversion Optimization</div>
-                    <div class="service-description">A/B tests, UX audits, heatmaps that boost revenue</div>
+                <div class="industry-card">
+                    <h3>Financial Services</h3>
+                    <p>From lenders to advisors, we deliver prospects actively seeking solutions – from mortgage and loan applicants to investors – aligned with regulations.</p>
                 </div>
-                <div class="service-row">
-                    <div class="service-name">Creative Direction</div>
-                    <div class="service-description">Viral hooks, compelling storytelling that sells</div>
-                </div>
-                <div class="service-row">
-                    <div class="service-name">Analytics & Attribution</div>
-                    <div class="service-description">GA4, GTM, events tracking that reveals hidden profits</div>
+                <div class="industry-card">
+                    <h3>Insurance</h3>
+                    <p>High‑intent leads for home, auto, life, or health coverage. Verified and pre‑qualified so agents focus on prospects who truly need coverage.</p>
                 </div>
             </div>
         </div>
     </section>
 
-
-
-    <!-- Results Guarantee Section -->
-    <section class="results-guarantee" id="guarantee">
+    <!-- Services -->
+    <section class="content-section" id="services">
         <div class="container">
-            <div class="guarantee-content">
-                <div class="guarantee-header">
-                    <h2>Ready to Scale Your Brand to New Heights?</h2>
-                    <p>If you want to achieve ground-breaking growth with increased sales and profitability with paid ads, then you're in the right place.</p>
-                </div>
-                
-                <div class="guarantee-features">
-                    <div class="feature-item">
-                        <div class="feature-icon">⚡</div>
-                        <h3>Rapid Campaign Deployment</h3>
-                        <p>Launch your targeted campaigns in just one week. Our streamlined processes deliver quick and effective results.</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">🚀</div>
-                        <h3>Proprietary Ad Technology</h3>
-                        <p>Our proprietary ad platform and analytics tool hyper-localize campaigns to specific zip codes, ensuring unmatched results.</p>
-                    </div>
-                    <div class="feature-item">
-                        <div class="feature-icon">🎬</div>
-                        <h3>Engaging Video Ads</h3>
-                        <p>Our expertly crafted video ads mimic authenticity of user-generated content, optimizing engagement for social media.</p>
-                    </div>
-                </div>
+            <div class="section-header">
+                <h2>Services</h2>
+                <p>End-to-end consulting and execution to build your lead generation engine.</p>
+            </div>
 
-                <div class="guarantee-cta">
-                    <button class="cta-btn primary large" onclick="scrollToForm()">
-                        <span>Book Strategy Call Now</span>
-                        <i class="fas fa-rocket"></i>
+            <div class="accordion service-accordion">
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span>Paid Traffic Management (Meta, TikTok, Google Ads)</span>
+                        <i class="fas fa-chevron-down"></i>
                     </button>
-                    <p class="guarantee-text">Join 500+ brands who've scaled with our proven system</p>
+                    <div class="accordion-body">
+                        <h4>Overview</h4>
+                        <p>We manage high-performance advertising campaigns on Meta, TikTok, Google, and other platforms to drive targeted traffic and leads into your funnel.</p>
+                        <h4>What We Do</h4>
+                        <p>ICP research, creative development, conversion tracking, daily optimization, and compliance with platform policies.</p>
+                        <h4>Outcomes</h4>
+                        <p>Steady stream of qualified leads and improved efficiency. Lower CPL, higher quality, measurable pipeline growth.</p>
+                        <h4>Typical Investment</h4>
+                        <p>$2,500–$5,000/month management fee (plus ad spend); custom quotes for larger budgets or multi‑channel scope.</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span>In‑House Quiz Funnel Development</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="accordion-body">
+                        <h4>Overview</h4>
+                        <p>Interactive quiz funnels that qualify leads and increase conversions with engaging, on‑brand experiences.</p>
+                        <h4>What We Do</h4>
+                        <p>Concept, copy, design, development, CRM integration, and mobile‑first implementation.</p>
+                        <h4>Outcomes</h4>
+                        <p>Higher conversion rates, richer lead data, and better sales conversations.</p>
+                        <h4>Typical Investment</h4>
+                        <p>$5,000–$10,000 one‑time, depending on complexity; ongoing A/B testing included with traffic management retainers.</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span>Analytics & Reporting (Data‑Driven Insights)</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="accordion-body">
+                        <h4>Overview</h4>
+                        <p>Robust analytics to track the entire funnel and consolidate KPIs into meaningful dashboards and reports.</p>
+                        <h4>What We Do</h4>
+                        <p>Conversion tracking, CRM integrations, Looker Studio and Tableau dashboards, and monthly insight reports.</p>
+                        <h4>Outcomes</h4>
+                        <p>Clear attribution, data‑driven decision making, faster iteration, and compounding performance gains.</p>
+                        <h4>Typical Investment</h4>
+                        <p>$2,000–$5,000 setup; $500–$1,500/month standalone for reporting/analysis.</p>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false">
+                        <span>Strategic Marketing Leadership (Fractional CMO)</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="accordion-body">
+                        <h4>Overview</h4>
+                        <p>Part‑time executive leadership to own strategy, align teams, and deliver measurable results.</p>
+                        <h4>What We Do</h4>
+                        <p>Audit, roadmap, KPI definition, cross‑functional alignment, vendor orchestration, hands‑on leadership.</p>
+                        <h4>Outcomes</h4>
+                        <p>Sharper strategy, stronger execution, scalable growth, and sustainable marketing maturity.</p>
+                        <h4>Typical Investment</h4>
+                        <p>$4,000–$8,000/month based on involvement; flexible, with a recommended 3‑month minimum.</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Case Studies Section -->
-    <section class="case-studies" id="results">
+    <!-- Case Studies -->
+    <section class="content-section section-accent" id="case-studies">
         <div class="container">
             <div class="section-header">
-                <h2>Proof That Speaks Louder Than Words</h2>
-                <p>These numbers represent real businesses transformed by our strategies</p>
+                <h2>Case Studies & Results</h2>
+                <p>Our results speak loudly. Below are examples across our focus industries.</p>
             </div>
-            
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value" data-target="3.9">0%</div>
-                    <div class="metric-label">Conversion Rate Boost</div>
-                    <div class="metric-context">From 1.2% to 3.9% in 6 weeks for SaaS client</div>
+            <div class="case-list">
+                <div class="case-item">
+                    <h3>Full‑Funnel Lead Generation Boost for Home Improvement Co.</h3>
+                    <p><strong>Client:</strong> “HomeRenovators Co.” – regional contractor (windows & roofing).</p>
+                    <p><strong>Challenge:</strong> Inconsistent lead flow, high CPL, difficulty scaling beyond local area.</p>
+                    <p><strong>Solution:</strong> Targeted FB/Google Ads, “Home Improvement Savings Quiz”, robust tracking, weekly optimizations, email nurture.</p>
+                    <ul>
+                        <li><strong>Lead Volume:</strong> ~120 qualified leads/month (+150%).</li>
+                        <li><strong>Cost Efficiency:</strong> CPL down 35%.</li>
+                        <li><strong>Pipeline:</strong> Sales calendar booked 2–3 weeks out; +50% quarterly revenue.</li>
+                    </ul>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value" data-target="670" data-prefix="$" data-suffix="K">$0K</div>
-                    <div class="metric-label">Revenue Generated</div>
-                    <div class="metric-context">4x ROAS from $3.5k ad spend in Q1</div>
+                <div class="case-item">
+                    <h3>Performance Turnaround for Legal Services Firm</h3>
+                    <p><strong>Client:</strong> “Smith & Doe LLP” – family law and estate planning.</p>
+                    <p><strong>Challenge:</strong> Poor results from prior ads/directories; no cohesive strategy.</p>
+                    <p><strong>Solution:</strong> High‑intent Google Search, FB retargeting, landing page redesign, simple “Estate Planning Readiness” quiz, call/form attribution.</p>
+                    <ul>
+                        <li><strong>Lead Quantity:</strong> 10 → 40+ qualified inquiries/month.</li>
+                        <li><strong>Lower CAC:</strong> Cost per lead down 40%.</li>
+                        <li><strong>Business Impact:</strong> Doubled new clients/quarter; better close rates.</li>
+                    </ul>
                 </div>
-                <div class="metric-card">
-                    <div class="metric-value" data-target="43">0%</div>
-                    <div class="metric-label">Cost Per Lead Drop</div>
-                    <div class="metric-context">Slashed CPL by 43% with video creative optimization</div>
+                <div class="case-item">
+                    <h3>Scalable Lead System for Insurance Provider</h3>
+                    <p><strong>Client:</strong> “SecureLife Insurance Brokers” – multi‑state agency.</p>
+                    <p><strong>Challenge:</strong> Expansion required compliant, scalable lead flow (past lists had mixed quality/compliance issues).</p>
+                    <p><strong>Solution:</strong> FB/TikTok ads to a quote quiz, TCPA‑compliant capture, verification, and instant routing to agents.</p>
+                    <ul>
+                        <li><strong>High Volume:</strong> 200+ leads/month in first 3 months.</li>
+                        <li><strong>Quality & Compliance:</strong> >95% met criteria; zero compliance incidents.</li>
+                        <li><strong>Revenue Growth:</strong> +30% new policy sales; model scaled to new states.</li>
+                    </ul>
                 </div>
-            </div>
-            
-            <div class="results-cta">
-                <button class="cta-btn primary large" onclick="scrollToForm()">
-                    <span>Get Results Like These</span>
-                    <i class="fas fa-chart-line"></i>
-                </button>
             </div>
         </div>
     </section>
 
-
-
-    <!-- How We Work Section -->
-    <section class="how-we-work" id="process">
+    <!-- How We Work -->
+    <section class="content-section" id="process">
         <div class="container">
             <div class="section-header">
-                <h2>Our Revenue-Generating Process</h2>
-                <p>The exact 5-step system we use to scale brands from 6-figures to 8-figures</p>
+                <h2>How We Work</h2>
             </div>
-            
             <div class="process-steps">
                 <div class="step">
                     <div class="step-number">1</div>
                     <div class="step-content">
-                        <h3>Deep-Dive Audit & Strategy</h3>
-                        <p>We analyze your current funnel, identify profit leaks, and create a custom growth roadmap</p>
+                        <h3>Discovery & Audit</h3>
+                        <p>Deep dive into goals, current marketing, funnels, and data. Audience, competitors, UVP. Deliverable: Initial findings and high‑level game plan.</p>
                     </div>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
                     <div class="step-content">
-                        <h3>Irresistible Offer Design</h3>
-                        <p>We craft compelling offers that make your competitors irrelevant and customers say "yes"</p>
+                        <h3>Strategy Development</h3>
+                        <p>Roadmap to targets: channels, assets, budgets, funnel, KPIs – engineered as a full‑funnel system. Deliverable: Strategy blueprint.</p>
                     </div>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
                     <div class="step-content">
-                        <h3>High-Converting Creative Production</h3>
-                        <p>Our team produces viral-worthy ads and landing pages that turn scrollers into buyers</p>
+                        <h3>Execution & Optimization</h3>
+                        <p>Launch campaigns and assets, implement tracking, iterate fast with tests and real‑time optimizations. Deliverable: Live campaigns & weekly updates.</p>
                     </div>
                 </div>
                 <div class="step">
                     <div class="step-number">4</div>
                     <div class="step-content">
-                        <h3>Multi-Channel Traffic Launch</h3>
-                        <p>We deploy profit-optimized campaigns across Facebook, Instagram, Google, and TikTok</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">5</div>
-                    <div class="step-content">
-                        <h3>Scale & Optimize for Maximum ROI</h3>
-                        <p>Continuous testing and optimization to 2x, 3x, and 10x your ad spend profitably</p>
+                        <h3>Reporting & Continuous Improvement</h3>
+                        <p>Transparent reporting on leads, CPL, conversion, ROI vs targets. We interpret data, plan next steps, and scale what works.</p>
                     </div>
                 </div>
             </div>
-            
             <div class="process-cta">
                 <button class="cta-btn primary large" onclick="scrollToForm()">
-                    <span>Start Your Growth Journey</span>
+                    <span>Schedule a Consultation</span>
                     <i class="fas fa-arrow-right"></i>
                 </button>
             </div>
         </div>
     </section>
 
-    <!-- CTA Form Section -->
+    <!-- FAQs -->
+    <section class="content-section section-alt" id="faqs">
+        <div class="container">
+            <div class="section-header">
+                <h2>FAQs</h2>
+            </div>
+            <div class="accordion faq-accordion">
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>What types of businesses do you work with?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>We work with B2C and B2B companies primarily in Home Improvement, Legal, Financial Services, and Insurance. If you’re outside these industries, we’re happy to discuss fit.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>How is gethookery different from a traditional agency?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>We combine C‑suite strategy with hands‑on execution, with full transparency and focus on measurable outcomes, not vanity metrics.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>What is a quiz funnel and why would I need one?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>An interactive lead‑capture tool that increases conversion and qualifies prospects via tailored questions and personalized results.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>What exactly is a Fractional CMO service?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>Part‑time executive leadership that owns strategy, coordinates execution, mentors teams, and aligns marketing to business goals.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>How do you measure success?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>KPIs aligned to your goals: leads/month, CPL, lead‑to‑customer conversion, ROAS/ROMI – tracked and reported regularly.</p>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <button class="accordion-header" aria-expanded="false"><span>How soon will I see results?</span><i class="fas fa-chevron-down"></i></button>
+                    <div class="accordion-body">
+                        <p>Leads can start within a week post‑launch; dialing in CPL and conversion typically takes 1–3 months of testing and optimization.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="content-section" id="testimonials">
+        <div class="container">
+            <div class="section-header">
+                <h2>Testimonials</h2>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <p>“gethookery helped us double monthly leads within 6 months while lowering ad spend. It felt like an in‑house marketing department.”</p>
+                    <span class="author">Michael R., CEO, HomePro Remodeling</span>
+                </div>
+                <div class="testimonial-card">
+                    <p>“True strategic partners. In three months, 50% more consultations. We know exactly where our marketing dollars go.”</p>
+                    <span class="author">Sandra L., Managing Partner, LawGroup LLP</span>
+                </div>
+                <div class="testimonial-card">
+                    <p>“One of the best decisions for our growth. Full‑funnel strategy took us to a predictable pipeline. 3X marketing ROI.”</p>
+                    <span class="author">David K., Co‑Founder, FinGrow Solutions</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+
+    <!-- Contact -->
     <section class="cta-form" id="contact">
         <div class="container">
             <div class="form-content">
                 <div class="form-header">
-                    <h2>Ready to 10x Your Revenue?</h2>
-                    <p>Book your FREE strategy call now. We'll analyze your business, identify profit opportunities, and show you exactly how to scale with profitable ads.</p>
+                    <h2>Ready to Drive Growth?</h2>
+                    <p>Contact us for a free consultation and see how gethookery can build a pipeline that powers your revenue.</p>
                 </div>
                 
                 <form class="contact-form" id="contactForm">
@@ -278,7 +421,7 @@
                         <input type="text" id="name" name="name" placeholder="Your Full Name" required>
                     </div>
                     <div class="form-group">
-                        <input type="email" id="email" name="email" placeholder="Your Best Email Address" required>
+                        <input type="email" id="email" name="email" placeholder="Your Work Email" required>
                     </div>
                     <div class="form-group">
                         <input type="text" id="website" name="website" placeholder="Your Website / Business Type" required>
@@ -293,14 +436,14 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <textarea id="message" name="message" placeholder="What's your biggest challenge with scaling your business?" rows="4" required></textarea>
+                        <textarea id="message" name="message" placeholder="Tell us your goals and challenges" rows="4" required></textarea>
                     </div>
                     <button type="submit" class="cta-btn primary form-submit large">
-                        <span>Book My FREE Strategy Call</span>
+                        <span>Schedule a Consultation</span>
                         <i class="fas fa-calendar-check"></i>
                     </button>
-                    <p class="form-guarantee">🔒 No spam. Your information is 100% secure.</p>
                 </form>
+                
             </div>
         </div>
     </section>
@@ -315,12 +458,10 @@
                     </div>
                     <p>Building brands that convert since 2024</p>
                 </div>
-                <div class="footer-contact">
-                    <p><i class="fas fa-envelope"></i> hi@gethookery.com</p>
-                </div>
+                
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 GetHookery. All rights reserved.</p>
+                <p>&copy; 2025 GetHookery. All rights reserved.</p>
                 <a href="/privacy.html" class="privacy-link">Privacy Policy</a>
                 <!-- Auto-deploy test: Updated on 2024-12-28 -->
             </div>
