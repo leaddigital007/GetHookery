@@ -44,6 +44,16 @@ DEFAULT_NAMES = [
     "Captions",
     "Descript",
     "Krea AI",
+    "Higgsfield",
+    "Artlist",
+    "Freepik",
+    "InVideo",
+    "Pollo AI",
+    "Topaz Labs",
+    "Creatify",
+    "Submagic",
+    "Opus Clip",
+    "Wondercraft",
 ]
 
 CONTEXT_HINTS = {
@@ -57,6 +67,42 @@ CONTEXT_HINTS = {
     "Captions": "AI video editing for creators.",
     "Descript": "AI-driven podcast / video editor.",
     "Krea AI": "AI image / video creation tools.",
+    "Higgsfield": (
+        "AI motion / video generation startup; raised a notable Series A in "
+        "2024-2025."
+    ),
+    "Artlist": (
+        "Tel Aviv based creative-assets platform (Artlist + Motion Array) "
+        "with AI-driven creative tools for video."
+    ),
+    "Freepik": (
+        "Spain-based stock + generative-AI platform (Freepik Group, includes "
+        "Wepik, Slidesgo) with growing AI video offering."
+    ),
+    "InVideo": (
+        "India-headquartered AI video editor for marketing and creators, "
+        "Sequoia / Tiger backed."
+    ),
+    "Pollo AI": (
+        "Generative AI video startup focused on consumer text-to-video; "
+        "operated by Pollo AI Pte Ltd (Singapore)."
+    ),
+    "Topaz Labs": (
+        "Dallas-based AI video / image enhancement (upscaling, denoise, "
+        "frame interpolation)."
+    ),
+    "Creatify": (
+        "AI video ads and short-form marketing video generation."
+    ),
+    "Submagic": (
+        "Paris-based AI captioning and short-form video editor for creators."
+    ),
+    "Opus Clip": (
+        "AI long-form-to-short-form video clipper for creators; San Francisco."
+    ),
+    "Wondercraft": (
+        "AI audio / video studio for marketing teams; London-based."
+    ),
 }
 
 
