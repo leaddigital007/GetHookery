@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "import_export",
     "apps.investors",
+    "apps.ingest",
     "apps.site",
 ]
 

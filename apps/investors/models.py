@@ -58,6 +58,8 @@ class FundSource(models.TextChoices):
     CRUNCHBASE = "crunchbase", "Crunchbase"
     SIGNAL_NFX = "signal_nfx", "Signal NFX"
     TWITTER = "twitter", "Twitter / X"
+    GITHUB_AWESOME = "github_awesome", "GitHub awesome list"
+    NEWSLETTER = "newsletter", "Newsletter"
     REFERRAL = "referral", "Referral"
     OTHER = "other", "Other"
 

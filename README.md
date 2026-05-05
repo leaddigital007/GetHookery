@@ -99,7 +99,10 @@ GetHookery/
   config/                   Django project (settings, urls, wsgi, asgi)
   apps/
     investors/              domain models, admin, CSV resources
+    ingest/                 ingestion pipelines (Phase 2): models, sources,
+                            management commands, services
     site/                   /api/contact view used by the public landing
+  worker.py                 long-running APScheduler process (worker dyno)
 ```
 
 ## Domain model
@@ -143,13 +146,91 @@ If `slug` is missing it is generated from `name` automatically.
 For Person imports, the `fund` column is matched against `Fund.slug`. Solo
 angels can be imported with an empty `fund` value.
 
-## Phase 2 (not implemented yet)
+## Phase 2 — ingestion pipelines
 
-Tracked separately and to be designed once the data side is populated:
+The `apps/ingest` app and `worker.py` form the data-collection layer. Three
+small admin-only tables back every pipeline:
+
+- **`ExternalRef`** — `(source, external_id)` -> any internal record. Powers
+  idempotent upserts so a job can be run any number of times.
+- **`ImportRun`** — audit row written by every command run (counters,
+  status, log tail). Visible in admin under *Ingest -> Import runs*.
+- **`Signal`** — triage queue for ambiguous data (unmatched filers, deal
+  hints from RSS, social posts). Promoted to canonical Fund/Person/Company
+  records by an operator from the admin.
+
+### Available management commands
+
+```bash
+# Pull recent SEC EDGAR Form D filings, create Companies + Deals + Signals
+python manage.py import_edgar_form_d --days 1 --max 200
+
+# Re-run last 30 days backfill (used once on first deploy)
+python manage.py import_edgar_form_d --days 30 --max 1000
+
+# Pull curated awesome-vc style fund lists from GitHub
+python manage.py import_github_awesome
+```
+
+Both commands are idempotent: a second run skips filings/funds already
+seen via `ExternalRef`.
+
+### Worker dyno (`worker.py`)
+
+`worker.py` runs APScheduler in the foreground and triggers management
+commands on a UTC schedule:
+
+| Job | Cron | What it does |
+| --- | --- | --- |
+| `edgar_daily` | 06:15 UTC daily | `import_edgar_form_d --days 1 --max 200` |
+| `github_weekly` | 03:30 UTC Mondays | `import_github_awesome` (default lists) |
+
+Heroku process is declared in `Procfile` but **scaled to zero by default**
+to preserve the shared Eco dyno-hour quota. Turn it on with:
+
+```bash
+# Start the worker dyno
+heroku ps:scale worker=1 -a gethookery-agency
+
+# Stop it (e.g. before backfills or to save Eco hours)
+heroku ps:scale worker=0 -a gethookery-agency
+```
+
+Heroku's combined Eco quota is 1000 dyno-hours/month for all dynos in the
+account. With both `web` and `worker` always-on, total usage is ~1440 h/mo
+which exceeds the quota — when the math gets tight, either let one dyno
+sleep, upgrade `web` to Basic ($7/mo) and keep `worker` on Eco, or run
+ingestion as one-off jobs (`heroku run python manage.py import_edgar_form_d`).
+
+Worker tuning via Heroku config vars:
+
+| Var | Default | Effect |
+| --- | --- | --- |
+| `WORKER_RUN_ON_START` | unset | Run all jobs once at startup. Useful right after a backfill bump. |
+| `WORKER_EDGAR_DAYS` | 1 | Days back for the daily EDGAR job. |
+| `WORKER_EDGAR_MAX` | 200 | Hard cap on filings per EDGAR run. |
+| `WORKER_DISABLE_EDGAR` | unset | Skip scheduling the EDGAR job. |
+| `WORKER_DISABLE_GITHUB` | unset | Skip scheduling the GitHub awesome job. |
+
+### OpenVC quarterly export playbook
+
+OpenVC has no API. We refresh from a manual export every quarter:
+
+1. Log in to <https://www.openvc.app/> and apply filters
+   (e.g. AI / SaaS, Pre-seed/Seed, ticket within $0.5–5M).
+2. Click **Export to CSV** — this downloads a CSV with the column
+   headers documented above.
+3. In the admin, open *Investors -> Funds -> Import* (top-right) and
+   upload the CSV. The OpenVC headers are auto-mapped by `FundResource`.
+4. After the import finishes, batch-tag the new rows by thesis using the
+   admin filter + `thesis_tags` action.
+
+### Out of scope for Phase 2 (yet)
 
 - Email sending + open/click tracking + reply ingestion
 - Cadence/sequence engine and follow-up scheduler
-- SEC EDGAR Form D crawler, X/Twitter monitor, Hunter/Snov enrichment
+- X/Twitter monitor (planned: Apify free $5/mo + push webhook)
+- Hunter / Snov enrichment commands
 - Investor-facing landing at `/for-investors` (deck + metrics)
 
 ## Contact
