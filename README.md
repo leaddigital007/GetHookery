@@ -1,108 +1,157 @@
-# GetHookery - Marketing Agency
+# GetHookery / Kubricon — Investor CRM
 
-🚀 **Professional marketing agency website focused on conversion-driven growth for US & European markets.**
+A single Heroku app that serves two surfaces:
 
-## 🌟 Features
+- **Public landing** at `/` — the existing static site in [`public/`](public/),
+  unchanged for visitors.
+- **Closed admin** at `/admin/` — Django Admin powered investor CRM used to
+  collect, enrich and follow up on funds, partners, angels, comparable
+  companies and their deals while we run the $2M pre-seed/seed round.
 
-- **Modern Design**: Dark theme with orange accents inspired by leaddigital.guru
-- **Conversion-Focused**: Built to generate leads and drive sales
-- **Creative Animations**: Interactive elements, floating shapes, magnetic buttons
-- **Responsive**: Works perfectly on all devices
-- **Privacy Policy**: Full GDPR-compliant privacy policy page
+Email outreach (sending, open/click tracking, sequences) is intentionally
+**out of scope for this phase**. The app stores everything we need to start
+the outreach engine in a later phase without schema migrations.
 
-## 🎯 Services
+## Stack
 
-- **Performance Strategy**: Audit, funnels, UTM architecture that converts
-- **Creative + CRO**: High-converting websites, landing pages, UI/UX
-- **Traffic & Analytics**: Ad launches, optimization, end-to-end analytics
-- **Paid Traffic Mastery**: FB/IG/TikTok/YouTube/Google Ads that scale profitably
-- **High-Converting Funnels**: Lightning-fast, responsive pages that turn visitors into buyers
+- Python 3.13, Django 5.2 LTS
+- Gunicorn, WhiteNoise (also serves the public landing at root URLs)
+- Postgres on Heroku via the Stackhero add-on
+- `django-import-export` for CSV import/export inside the admin
+- `dj-database-url` + `django-environ` for 12-factor configuration
 
-## 🏆 Results
+## Production
 
-- **$670K** Revenue Generated (4x ROAS from $3.5k ad spend in Q1)
-- **3.9%** Conversion Rate Boost (From 1.2% to 3.9% in 6 weeks for SaaS client)
-- **43%** Cost Per Lead Drop (Slashed CPL with video creative optimization)
+- App: `gethookery-agency`
+- URL: <https://gethookery-agency-3cc368fea69d.herokuapp.com/>
+- Admin: <https://gethookery-agency-3cc368fea69d.herokuapp.com/admin/>
+- Auto-deploy: every `git push heroku main` runs the release phase
+  (`migrate` + `collectstatic`) and then restarts the web dyno.
 
-## 🛠 Tech Stack
+### Required Heroku config vars
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Backend**: Node.js, Express.js
-- **Styling**: CSS Grid, Flexbox, CSS animations, Glassmorphism
-- **Icons**: Font Awesome
-- **Fonts**: Google Fonts (Inter)
-- **Deployment**: Heroku
-- **Version Control**: Git & GitHub
+| Var | Purpose |
+| --- | --- |
+| `DJANGO_SECRET_KEY` | Django cryptographic key. Rotate via `heroku config:set`. |
+| `DJANGO_DEBUG` | Must be `False` in production. |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated. Includes the Heroku hostname and any custom domain. |
+| `STACKHERO_POSTGRESQL_DATABASE_URL` | Auto-set by the Stackhero add-on. Settings fall back to it when `DATABASE_URL` is unset. |
 
-## 🚀 Live Demo
-
-**Production**: https://gethookery-agency-3cc368fea69d.herokuapp.com/
-
-> ✅ **Auto-deploy tested on 2024-12-28** - GitHub → Heroku integration working!
-
-## 📱 Local Development
+### First-time deploy
 
 ```bash
-# Clone the repository
-git clone https://github.com/leaddigital007/GetHookery.git
-
-# Navigate to project directory
-cd GetHookery
-
-# Install dependencies
-npm install
-
-# Start development server
-npm start
-
-# Open in browser
-http://localhost:3000
+heroku buildpacks:set heroku/python -a gethookery-agency
+heroku config:set -a gethookery-agency \
+  DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')" \
+  DJANGO_DEBUG=False \
+  DJANGO_ALLOWED_HOSTS=gethookery-agency-3cc368fea69d.herokuapp.com,.herokuapp.com
+git push heroku main
 ```
 
-## 📁 Project Structure
+The release phase applies migrations automatically.
+
+### Creating / rotating the admin user
+
+The current bootstrap superuser is `admin` (set with a temporary password
+during initial deploy — change it immediately on first login at
+`/admin/password/`).
+
+To create a brand-new superuser:
+
+```bash
+heroku run -a gethookery-agency python manage.py createsuperuser
+```
+
+To reset the password of an existing user without an email round-trip:
+
+```bash
+heroku run -a gethookery-agency python manage.py changepassword admin
+```
+
+## Local development
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+# Edit .env: set DJANGO_SECRET_KEY and DATABASE_URL (or leave the SQLite default)
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Open <http://127.0.0.1:8000/> for the landing and
+<http://127.0.0.1:8000/admin/> for the CRM.
+
+## Project layout
 
 ```
 GetHookery/
-├── public/
-│   ├── css/
-│   │   └── styles.css      # Main stylesheet with dark theme
-│   ├── js/
-│   │   └── scripts.js      # Interactive features & animations
-│   ├── images/             # Static images
-│   ├── index.html          # Main landing page
-│   └── privacy.html        # Privacy Policy page
-├── server.js               # Express server
-├── package.json           # Dependencies & scripts
-├── Procfile               # Heroku deployment config
-└── README.md              # This file
+  public/                   public landing assets, served at root URLs
+                            via WhiteNoise (WHITENOISE_ROOT)
+  manage.py
+  Procfile                  release: migrate + collectstatic; web: gunicorn
+  requirements.txt
+  .python-version           Python 3.13 for Heroku
+  config/                   Django project (settings, urls, wsgi, asgi)
+  apps/
+    investors/              domain models, admin, CSV resources
+    site/                   /api/contact view used by the public landing
 ```
 
-## 🎨 Design Features
+## Domain model
 
-- **Dark Theme**: Professional black/gray background (#0a0a0a, #111111)
-- **Orange Accents**: Brand colors (#FF6B35, #FF8C42, #FFA500)
-- **Glassmorphism**: Blurred glass effects on cards and sections
-- **Animations**: Floating shapes, magnetic buttons, typing effects
-- **Interactive Cursor**: Custom cursor glow effects
-- **Responsive**: Mobile-first design
+| Model | What it stores |
+| --- | --- |
+| `Tag` | Reusable thesis/category tags. |
+| `Fund` | VC fund, family office, syndicate. Tier S/1/2/Watch, check range, thesis, source. |
+| `Person` | Partner, principal, or solo angel (`fund=null`). Pipeline stage and warmth. |
+| `Company` | Comparable / portfolio company we use as a thesis-fit signal. |
+| `Deal` | One funding round announcement for a `Company`. |
+| `Investment` | Through-table that links a `Fund` to a `Deal` it joined (lead flag included). |
+| `Note` | Free-form note attachable to any of the four entities above. |
+| `Task` | TODO/follow-up tied optionally to a fund or a person. |
+| `ContactSubmission` | Submissions from the public landing's contact form. |
 
-## 📄 Pages
+## CSV import workflow
 
-1. **Homepage** (`/`): Complete marketing agency landing page
-2. **Privacy Policy** (`/privacy.html`): GDPR-compliant privacy policy
+The Fund / Person / Company / Deal / Investment / Tag admin pages all expose
+**Import** and **Export** buttons (top right) backed by
+`django-import-export`.
 
-## 🔄 Deployment
+The Fund importer also accepts the column headers produced by **OpenVC's**
+"Export to CSV":
 
-The project is automatically deployed to Heroku when changes are pushed to the `main` branch.
+| OpenVC column | Mapped to |
+| --- | --- |
+| `Investor name`, `Investor`, `Fund name` | `name` |
+| `Website`, `URL` | `website` |
+| `HQ Country`, `Country` | `hq_country` |
+| `HQ City`, `City` | `hq_city` |
+| `AUM` | `aum_text` |
+| `Min Check`, `Min Check Size` | `check_min_usd` (handles `$`, commas, `k`/`M`) |
+| `Max Check`, `Max Check Size` | `check_max_usd` |
+| `Stages`, `Stage` | `stages` (comma- or semicolon-separated) |
+| `Thesis`, `Investment Thesis` | `thesis_summary` |
+| `Notable Investments`, `Notable Invest` | `portfolio_notes` |
 
-- **Heroku App**: gethookery-agency
-- **GitHub Repo**: leaddigital007/GetHookery
-- **Auto-deploy**: Enabled from main branch
+If `slug` is missing it is generated from `name` automatically.
 
-## 📞 Contact
+For Person imports, the `fund` column is matched against `Fund.slug`. Solo
+angels can be imported with an empty `fund` value.
 
-**Email**: hi@gethookery.com
+## Phase 2 (not implemented yet)
 
----
+Tracked separately and to be designed once the data side is populated:
 
-© 2024 GetHookery. All rights reserved. 
+- Email sending + open/click tracking + reply ingestion
+- Cadence/sequence engine and follow-up scheduler
+- SEC EDGAR Form D crawler, X/Twitter monitor, Hunter/Snov enrichment
+- Investor-facing landing at `/for-investors` (deck + metrics)
+
+## Contact
+
+`hi@gethookery.com`
