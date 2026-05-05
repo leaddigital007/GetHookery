@@ -353,17 +353,28 @@ class FundResource(resources.ModelResource):
             row["hq_city"] = city
             row["hq_country"] = country
 
+        # Normalise `stages` into a JSON-encoded list. The Fund model uses a
+        # JSONField with default=list, and django-import-export's JSONWidget
+        # calls json.loads() on whatever string we leave here. We MUST
+        # always emit either valid JSON or an empty string, otherwise
+        # values like whitespace, "N/A" or "-" crash the entire import.
         stages = row.get("stages")
-        if isinstance(stages, str) and stages:
+        if isinstance(stages, list):
+            row["stages"] = json.dumps(
+                [_normalize_stage_label(p) for p in stages if p]
+            )
+        elif isinstance(stages, str) and stages.strip():
             parts = [
                 _normalize_stage_label(p)
                 for p in stages.replace(";", ",").split(",")
                 if p.strip()
             ]
-            # JSONField widget calls json.loads on the value, so pass JSON.
             row["stages"] = json.dumps([p for p in parts if p])
-        elif isinstance(stages, list):
-            row["stages"] = json.dumps([_normalize_stage_label(p) for p in stages if p])
+        else:
+            # Empty string, whitespace, None, or unsupported type -> []
+            # so JSONWidget receives a parseable empty list and the
+            # row reliably gets the model default.
+            row["stages"] = "[]"
 
         for money_field in ("check_min_usd", "check_max_usd"):
             row[money_field] = _parse_money_to_int(row.get(money_field))
