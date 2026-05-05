@@ -85,6 +85,15 @@ _COUNTRY_NAME_NORMALISATION = {
     "UNITED ARAB EMIRATES": "UAE",
 }
 
+# Region / province codes for non-US countries that may appear before the
+# trailing country token (e.g. "Toronto, ON, Canada", "Sydney, NSW, Australia").
+_NON_US_REGION_CODES = {
+    # Canada
+    "AB", "BC", "MB", "NB", "NS", "NT", "NU", "ON", "PE", "QC", "SK", "YT",
+    # Australia
+    "NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT",
+}
+
 # Map common 2-3 letter country codes used by OpenVC to canonical names
 # we want to filter on in admin (`hq_country`).
 _COUNTRY_CODE_MAP = {
@@ -144,15 +153,59 @@ _COUNTRY_CODE_MAP = {
 }
 
 
+def _alpha_words(token: str) -> list[str]:
+    """Split `token` into words, keeping only those with at least one
+    alphabetic character. Effectively strips zip codes and lone dashes."""
+    return [w for w in (token or "").split() if any(ch.isalpha() for ch in w)]
+
+
+def _is_region_token(token: str) -> bool:
+    """True if a comma-separated chunk is *purely* a region marker -
+    a US state code/name, a Canadian/Australian province code, or
+    all-numeric zip - i.e. it carries no city information of its own.
+    """
+    if not token:
+        return True
+    words = _alpha_words(token)
+    if not words:
+        return True  # all digits / punctuation
+    if len(words) == 1:
+        single = words[0].upper()
+        if single in _US_STATE_CODES or single in _NON_US_REGION_CODES:
+            return True
+    full = " ".join(w.upper() for w in words)
+    if full in _US_STATE_NAMES:
+        return True
+    return False
+
+
+def _extract_city_text(token: str) -> str:
+    """Strip pure-digit / pure-punct words and return the trimmed
+    remainder. "80333 Munich" -> "Munich"; "Mumbai – 400051" -> "Mumbai".
+    """
+    return " ".join(_alpha_words(token)).strip(" -–—.")
+
+
+def _looks_like_clean_city(token: str) -> bool:
+    """True if token looks like a plain alpha-only city name (no
+    digits) and is not itself a region/state marker."""
+    if not token or any(ch.isdigit() for ch in token):
+        return False
+    return not _is_region_token(token)
+
+
 def _parse_hq(hq_str) -> tuple[str, str]:
     """Heuristically split a free-form HQ address into (city, country).
 
     Examples:
-        "San Francisco, CA"                              -> ("San Francisco", "USA")
-        "541 Jefferson Ave., Redwood City, CA 94063"     -> ("Redwood City", "USA")
-        "Tiburon, California, 94920"                     -> ("Tiburon", "USA")
+        "San Francisco, CA"                                -> ("San Francisco", "USA")
+        "541 Jefferson Ave., Redwood City, CA 94063"       -> ("Redwood City", "USA")
+        "Tiburon, California, 94920"                       -> ("Tiburon", "USA")
+        "Boston, MA, USA"                                  -> ("Boston", "USA")
         "Singel 542, Amsterdam, North Holland 1017 AZ, NL" -> ("Amsterdam", "Netherlands")
-        "Toronto, ON, Canada"                            -> ("Toronto", "Canada")
+        "Toronto, ON, Canada"                              -> ("Toronto", "Canada")
+        "Sydney, NSW, Australia"                           -> ("Sydney", "Australia")
+        "Briennerstraße 21, 80333 Munich, Germany"         -> ("Munich", "Germany")
 
     Best-effort. Goal: produce *something* to filter on in admin,
     not perfect geocoding.
@@ -163,53 +216,58 @@ def _parse_hq(hq_str) -> tuple[str, str]:
     if not parts:
         return ("", "")
 
-    # Step 1: strip a trailing all-digits zip-code token like "94920"
-    # so the next token (state/country) can be detected properly.
+    # Strip a trailing all-digits zip-code token like "94920" so the next
+    # token (state or country) can be detected properly.
     while parts and parts[-1].replace(" ", "").replace("-", "").isdigit():
         parts.pop()
     if not parts:
         return ("", "")
 
     last = parts[-1]
-    last_upper = last.upper()
-
-    # Strip a trailing zip embedded in the last token: "CA 94063" -> "CA".
     last_clean_tokens = [
-        t for t in last_upper.split()
+        t for t in last.upper().split()
         if t and not t.replace("-", "").isdigit()
     ]
     if last_clean_tokens:
         last_first = last_clean_tokens[0]
         last_full = " ".join(last_clean_tokens)
     else:
-        last_first = last_upper
-        last_full = last_upper
+        last_first = last.upper()
+        last_full = last.upper()
 
     if last_first in _US_STATE_CODES or last_full in _US_STATE_NAMES:
-        # Parts[-1] is a US state, so the city is parts[-2].
-        city = parts[-2] if len(parts) >= 2 else ""
-        return (city[:120], "USA")
+        canonical = "USA"
+    else:
+        canonical = (
+            _COUNTRY_NAME_NORMALISATION.get(last_full)
+            or _COUNTRY_CODE_MAP.get(last_first, last)
+        )
 
-    # Apply normalisations (United States -> USA, etc.) before code lookup.
-    canonical = _COUNTRY_NAME_NORMALISATION.get(last_full)
-    if canonical is None:
-        canonical = _COUNTRY_CODE_MAP.get(last_first, last)
-
-    # If the trailing token is the country and the second-to-last is a US
-    # state code/name, fall back another step so we don't put "MA" in the
-    # city slot for "Boston, MA, USA".
+    # Walk backwards over tokens that are *purely* region markers (US
+    # state code/name, Canadian/Australian province code, all-numeric
+    # zip) so we don't pick "ON" as the city for "Toronto, ON, Canada".
     city_idx = -2
-    if len(parts) >= 3 and canonical == "USA":
-        prev_tokens = [
-            t for t in parts[city_idx].upper().split()
-            if t and not t.replace("-", "").isdigit()
-        ]
-        prev_first = prev_tokens[0] if prev_tokens else ""
-        prev_full = " ".join(prev_tokens)
-        if prev_first in _US_STATE_CODES or prev_full in _US_STATE_NAMES:
-            city_idx = -3
-    city = parts[city_idx] if len(parts) >= abs(city_idx) else ""
-    return (city[:120], canonical[:80])
+    while abs(city_idx) <= len(parts) and _is_region_token(parts[city_idx]):
+        city_idx -= 1
+
+    # If we landed on a "Region/State + Zip" combo that contains
+    # multi-word region text (e.g. "North Holland 1017 AZ") AND the
+    # previous chunk is a clean alpha-only city name (e.g. "Amsterdam"),
+    # prefer that earlier chunk over partial extraction. Single-word
+    # mixed tokens like "80333 Munich" or "Mumbai - 400051" stay as-is
+    # so we can extract the city via _extract_city_text.
+    if (
+        abs(city_idx) <= len(parts)
+        and any(ch.isdigit() for ch in parts[city_idx])
+        and abs(city_idx - 1) <= len(parts)
+        and len(_alpha_words(parts[city_idx])) >= 2
+        and _looks_like_clean_city(parts[city_idx - 1])
+    ):
+        city_idx -= 1
+
+    city_token = parts[city_idx] if abs(city_idx) <= len(parts) else ""
+    city = _extract_city_text(city_token)[:120]
+    return (city, canonical[:80])
 
 
 def _normalize_stage_label(label: str) -> str:
