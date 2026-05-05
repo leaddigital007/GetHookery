@@ -72,6 +72,16 @@ class Command(BaseCommand):
             help="Skip funds whose tier was already set by a prior LLM run.",
         )
         parser.add_argument(
+            "--tiers",
+            type=str,
+            default=None,
+            help=(
+                "Comma-separated current tiers to re-score, e.g. 'S,1'. "
+                "Useful after a thesis change to refresh only the top "
+                "of the funnel without paying for a full re-run."
+            ),
+        )
+        parser.add_argument(
             "--min-score",
             type=int,
             default=None,
@@ -97,6 +107,7 @@ class Command(BaseCommand):
         limit = options.get("limit")
         dry_run = options.get("dry_run", False) or not options.get("apply", False)
         only_untiered = options.get("only_untiered", False)
+        tiers_arg = options.get("tiers")
         min_score = options.get("min_score")
         quiet = options.get("quiet", False)
         concurrency = max(1, int(options.get("concurrency") or 1))
@@ -108,6 +119,9 @@ class Command(BaseCommand):
             qs = qs.filter(
                 Q(tier=FundTier.WATCH) & ~Q(internal_notes__contains=LLM_NOTE_PREFIX)
             )
+        if tiers_arg:
+            wanted = [t.strip() for t in tiers_arg.split(",") if t.strip()]
+            qs = qs.filter(tier__in=wanted)
         qs = qs.exclude(thesis_summary="").order_by("-check_max_usd", "name")
         if limit:
             qs = qs[:limit]
