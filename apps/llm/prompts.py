@@ -5,22 +5,39 @@ Keeping prompts here (and not inline inside management commands) lets us
 version them, snapshot-test them and reason about cost/quality without
 chasing strings across the codebase.
 
-Kubricon thesis (v1): generative-video tooling for creators and studios.
-We monetise by selling AI-native video editing / production / generation
-software to professional creators and SMB media teams. Best-fit
-investors back creator tools, generative AI, video infrastructure,
-prosumer / SMB SaaS, and applied AI.
+Kubricon thesis (v2 - May 2026 pitch deck source of truth):
+AI Creative Production for Performance Marketing teams. We sell
+brand-controlled AI generation (multi-model + reference characters +
+brand kits + studios) to DTC, SMM and growth teams running paid social
+on Meta/TikTok/Google. The best fit investors are operator-VCs with
+paid-acquisition expertise, US-focused, who back creator-economy /
+DTC / SMB SaaS / applied AI. Same operating duo previously built
+MyHomeQuote from $0 to $3.5M monthly revenue.
 """
 from __future__ import annotations
 
 KUBRICON_THESIS = (
-    "Kubricon (kubricon.com) is raising a $2M Pre-seed/Seed round. "
-    "We build generative-video AI tooling for professional creators and "
-    "SMB media teams: AI-assisted editing, production, and generation. "
-    "We compete in the same space as Runway, Pika, Luma, HeyGen, "
-    "Synthesia, ElevenLabs and Suno. Ideal investors back creator tools, "
-    "applied / generative AI, video infrastructure, prosumer or SMB SaaS, "
-    "and back pre-seed or seed checks of $50k-$500k."
+    "Kubricon (kubricon.com) is raising a $1M Pre-seed on a SAFE with a "
+    "$10M valuation cap (May 2026). The product is AI creative "
+    "production tooling for performance-marketing teams - DTC brands, "
+    "SMM/growth teams, eCommerce operators - who run paid social on "
+    "Meta, TikTok and Google and need brand-consistent ad creatives at "
+    "scale. The platform combines multi-model AI generation (Veo, "
+    "Kling, Seedance, Flux, GPT Image) with director-level control "
+    "(reference characters, products, brand kits) across four studios "
+    "(Reference Studio, Marketing Studio, Storyframes, Kubricon Cinema). "
+    "Differentiation vs Runway / Pika / Veo: brand control built for "
+    "perf marketing teams, not generic creators. Closest comparables "
+    "are Higgsfield ($200M run-rate, $1.3B val), Freepik ($230M ARR), "
+    "Artlist ($300M ARR), InVideo ($70M ARR). Current state: 659 "
+    "signups, 256 active users, 37.8% activation, $202 MRR, $61K total "
+    "spent in 9 months. US is the #1 organic geo. Founder Igor "
+    "Skobletskyi is ex-COO of MyHomeQuote (scaled $0 -> $3.5M monthly "
+    "revenue) with 6 years in US performance marketing. Ideal "
+    "investors are operator-VCs who themselves come from paid "
+    "acquisition / growth / DTC backgrounds, are US-focused, "
+    "thesis-fit on creator-economy / DTC / SMB SaaS / applied AI / "
+    "AI ad creative, and write pre-seed checks of $50k-$500k."
 )
 
 
@@ -215,11 +232,24 @@ def build_score_fund_prompt(*, fund) -> str:
 SCORE_FUND_SYSTEM = (
     "You are a venture-capital analyst working for the founder of Kubricon. "
     "Score how good a fit a given investor is for Kubricon and return ONLY "
-    "valid JSON conforming to the schema. Be conservative: only assign Tier S "
-    "when the thesis or portfolio explicitly supports generative video, "
-    "creator tools, or video infrastructure. Tier 1 is for broad applied-AI "
-    "investors that write pre-seed/seed checks. Tier 2 is generic but "
-    "pre-seed friendly. Use 'watch' for everything else.\n\n"
+    "valid JSON conforming to the schema. Be conservative.\n\n"
+    "Tier S = direct fit. Award Tier S when ANY of the following is "
+    "explicitly supported by the fund's thesis or portfolio:\n"
+    "  - operator-VC whose partners come from paid acquisition / "
+    "performance marketing / DTC growth backgrounds;\n"
+    "  - explicit thesis on AI ad creative, AI marketing tools, or "
+    "creative-AI for performance marketers;\n"
+    "  - heavy DTC / eCommerce / SMM / creator-economy portfolio focus "
+    "where Kubricon's product is a buyable tool for their existing "
+    "portfolio companies.\n"
+    "Tier 1 = broad applied-AI fund that writes US pre-seed/seed "
+    "checks of $50k-$500k AND has at least one of: SMB SaaS thesis, "
+    "creator-tools thesis, or generative-AI / video-AI thesis. "
+    "Tier 2 = generic pre-seed friendly fund without an obvious "
+    "thesis match but writes our check size. "
+    "Use 'watch' for everything else (corporate, late-stage, hardware, "
+    "biotech, climate-only, dormant, wrong geography for a US-go-to-"
+    "market round, etc.).\n\n"
     f"Kubricon thesis: {KUBRICON_THESIS}"
 )
 
