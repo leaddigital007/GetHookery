@@ -12,10 +12,12 @@ from .models import (
     ContactSubmission,
     Deal,
     Fund,
+    FundTier,
     Investment,
     Note,
     Person,
     PipelineStage,
+    PortfolioMention,
     Tag,
     Task,
     Warmth,
@@ -134,24 +136,76 @@ def action_set_warm_2nd(modeladmin, request, queryset):
     modeladmin.message_user(request, f"{updated} updated", messages.SUCCESS)
 
 
+def _make_tier_action(tier, label):
+    @admin.action(description=f"Set tier: {label}")
+    def _action(modeladmin, request, queryset):
+        updated = queryset.update(tier=tier)
+        modeladmin.message_user(request, f"{updated} updated", messages.SUCCESS)
+
+    _action.__name__ = f"action_tier_{tier}"
+    return _action
+
+
+action_tier_s = _make_tier_action(FundTier.S, "Tier S (direct fit)")
+action_tier_1 = _make_tier_action(FundTier.T1, "Tier 1 (broad AI)")
+action_tier_2 = _make_tier_action(FundTier.T2, "Tier 2 (pre-seed)")
+action_tier_watch = _make_tier_action(FundTier.WATCH, "Watch list")
+
+
+class PortfolioMentionInlineForFund(admin.TabularInline):
+    model = PortfolioMention
+    fk_name = "fund"
+    extra = 0
+    fields = ("company", "source_url", "source_label")
+    autocomplete_fields = ("company",)
+    show_change_link = True
+    verbose_name = "Portfolio mention"
+    verbose_name_plural = "Portfolio mentions (heuristic)"
+
+
+class PortfolioMentionInlineForCompany(admin.TabularInline):
+    model = PortfolioMention
+    fk_name = "company"
+    extra = 0
+    fields = ("fund", "source_url", "source_label")
+    autocomplete_fields = ("fund",)
+    show_change_link = True
+    verbose_name = "Mentioned by"
+    verbose_name_plural = "Mentioned by funds"
+
+
 @admin.register(Fund)
 class FundAdmin(ImportExportModelAdmin):
     resource_classes = [FundResource]
     list_display = (
         "name",
         "tier",
+        "thesis_chips",
         "hq_display",
         "check_range",
-        "last_activity_at",
-        "source",
+        "stage_display",
         "people_count",
+        "portfolio_count",
+        "source",
     )
-    list_filter = ("tier", "source", "hq_country", "thesis_tags")
+    list_filter = ("tier", "thesis_tags", "source", "hq_country")
     search_fields = ("name", "slug", "website", "thesis_summary", "portfolio_notes")
     prepopulated_fields = {"slug": ("name",)}
     autocomplete_fields = ("thesis_tags",)
+    filter_horizontal = ("thesis_tags",)
     date_hierarchy = "last_activity_at"
-    inlines = (PersonInline, InvestmentInlineForFund, NoteInline)
+    inlines = (
+        PersonInline,
+        InvestmentInlineForFund,
+        PortfolioMentionInlineForFund,
+        NoteInline,
+    )
+    actions = (
+        action_tier_s,
+        action_tier_1,
+        action_tier_2,
+        action_tier_watch,
+    )
     fieldsets = (
         (
             "Identity",
@@ -198,9 +252,35 @@ class FundAdmin(ImportExportModelAdmin):
         hi = f"${obj.check_max_usd:,}" if obj.check_max_usd else "?"
         return f"{lo} – {hi}"
 
+    @admin.display(description="Stages")
+    def stage_display(self, obj: Fund) -> str:
+        if not obj.stages:
+            return "-"
+        return ", ".join(str(s) for s in obj.stages)
+
     @admin.display(description="People")
     def people_count(self, obj: Fund) -> int:
         return obj.people.count()
+
+    @admin.display(description="Portfolio")
+    def portfolio_count(self, obj: Fund) -> int:
+        return obj.portfolio_mentions.count()
+
+    @admin.display(description="Thesis")
+    def thesis_chips(self, obj: Fund) -> str:
+        tags = list(obj.thesis_tags.all()[:6])
+        if not tags:
+            return format_html('<span style="color:#999;">—</span>')
+        chips = "".join(
+            format_html(
+                '<span style="display:inline-block;padding:1px 6px;margin:1px 2px;'
+                "border-radius:10px;background:#eef;color:#225;border:1px solid #ccd;"
+                'font-size:11px;">{}</span>',
+                t.name,
+            )
+            for t in tags
+        )
+        return format_html(chips)
 
 
 @admin.register(Person)
@@ -288,18 +368,50 @@ class CompanyAdmin(ImportExportModelAdmin):
     list_display = (
         "name",
         "hq",
-        "is_kubricon_competitor",
+        "category_chips",
+        "mentioned_count",
         "deal_count",
+        "is_kubricon_competitor",
     )
-    list_filter = ("is_kubricon_competitor", "category_tags")
+    list_filter = ("is_kubricon_competitor", "category_tags", "mentioned_by_funds__fund__tier")
     search_fields = ("name", "description", "relevance_to_kubricon")
     prepopulated_fields = {"slug": ("name",)}
     autocomplete_fields = ("category_tags",)
-    inlines = (DealInline, NoteInline)
+    filter_horizontal = ("category_tags",)
+    inlines = (DealInline, PortfolioMentionInlineForCompany, NoteInline)
 
     @admin.display(description="Deals")
     def deal_count(self, obj: Company) -> int:
         return obj.deals.count()
+
+    @admin.display(description="In portfolio of")
+    def mentioned_count(self, obj: Company) -> int:
+        return obj.mentioned_by_funds.count()
+
+    @admin.display(description="Categories")
+    def category_chips(self, obj: Company) -> str:
+        tags = list(obj.category_tags.all()[:6])
+        if not tags:
+            return format_html('<span style="color:#999;">—</span>')
+        chips = "".join(
+            format_html(
+                '<span style="display:inline-block;padding:1px 6px;margin:1px 2px;'
+                "border-radius:10px;background:#efe;color:#252;border:1px solid #cdc;"
+                'font-size:11px;">{}</span>',
+                t.name,
+            )
+            for t in tags
+        )
+        return format_html(chips)
+
+
+@admin.register(PortfolioMention)
+class PortfolioMentionAdmin(admin.ModelAdmin):
+    list_display = ("fund", "company", "source_label", "created_at")
+    list_filter = ("source_label", "fund__tier")
+    search_fields = ("fund__name", "company__name", "source_url")
+    autocomplete_fields = ("fund", "company")
+    list_select_related = ("fund", "company")
 
 
 @admin.register(Deal)

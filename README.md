@@ -170,6 +170,16 @@ python manage.py import_edgar_form_d --days 30 --max 1000
 
 # Pull curated awesome-vc style fund lists from GitHub
 python manage.py import_github_awesome
+
+# Seed baseline thesis + category tags (idempotent)
+python manage.py seed_tags
+
+# Auto-assign thesis tags to Funds by keyword match in their portfolio_notes
+python manage.py tag_funds_from_portfolio
+
+# Extract portfolio companies from Fund.portfolio_notes,
+# create Company rows, and link them via PortfolioMention
+python manage.py extract_portfolio_companies
 ```
 
 Both commands are idempotent: a second run skips filings/funds already
@@ -211,6 +221,40 @@ Worker tuning via Heroku config vars:
 | `WORKER_EDGAR_MAX` | 200 | Hard cap on filings per EDGAR run. |
 | `WORKER_DISABLE_EDGAR` | unset | Skip scheduling the EDGAR job. |
 | `WORKER_DISABLE_GITHUB` | unset | Skip scheduling the GitHub awesome job. |
+
+### Admin navigation cheatsheet
+
+Common questions and where to answer them:
+
+| You want to... | Open this | Tip |
+| --- | --- | --- |
+| See **all funds** sorted by tier | `/admin/investors/fund/` | Default ordering is by `tier` then name. |
+| See **funds in our thesis** | `/admin/investors/fund/?thesis_tags__id__exact=<tag_id>` | Use the right-hand "Thesis" filter — pick one tag at a time. |
+| See **Tier S funds only** | `/admin/investors/fund/?tier__exact=S` | After hand-grading, this is your shortlist for outreach. |
+| Bulk-promote selected funds to **Tier S/1/2** | `/admin/investors/fund/`, select rows, action menu | Actions: "Set tier: Tier S / 1 / 2 / Watch". |
+| See **what a fund typically backs** | Open any Fund -> "Portfolio mentions" inline at the bottom | Heuristic links extracted from `portfolio_notes`. |
+| See **which funds mention a given company** | `/admin/investors/company/?q=<name>` -> open it -> "Mentioned by funds" | Reverse view of the same data. |
+| Find **hot bets** (mentioned by many funds) | `/admin/investors/company/?o=4` (sort by "In portfolio of" column) | Companies with 4+ mentions are signal of consensus. |
+| See **partners / angels** | `/admin/investors/person/` | Empty until we run the partner-enrichment pipeline (Twitter / Apollo / Hunter). |
+| Triage **fresh US deals** | `/admin/ingest/signal/?status__exact=new&kind__exact=new_deal_hint` | Auto-populated daily by SEC EDGAR worker. |
+| Triage **new VC funds** raising LPs | `/admin/ingest/signal/?status__exact=new&kind__exact=unmatched_filer` | Pooled-fund Form D filings — promote good ones to a Fund row manually. |
+| See **what each ingestion job did** | `/admin/ingest/importrun/` | Shows status, duration, rows created/updated for every run. |
+| See **inbound contact form leads** | `/admin/investors/contactsubmission/` | All submissions from the public landing's contact form. |
+
+The Fund list shows pill-style chips for thesis tags and a `Portfolio` count
+column so you can spot funds that match your thesis at a glance.
+
+### Where the data comes from
+
+| Surface | Filled by | When |
+| --- | --- | --- |
+| Funds | `import_github_awesome` (auto, weekly) + OpenVC CSV (manual quarterly) + `+ Fund` (manual) | Out of the box |
+| Companies | `extract_portfolio_companies` from fund portfolios + `import_edgar_form_d` (auto, daily) + `+ Company` (manual) | Out of the box + daily |
+| Deals | `import_edgar_form_d` (auto, daily) | Daily |
+| Persons (partners) | **Empty until Phase 2.3** — needs Apify Twitter scraper or OpenVC paid tier or manual entry | TBD |
+| Investments (Fund <-> Deal) | Manual for now (you research and link); auto in a later phase via Crunchbase scrape | TBD |
+| Tags | `seed_tags` once + `tag_funds_from_portfolio` auto | Out of the box |
+| Portfolio mentions | `extract_portfolio_companies` whenever new funds are imported | After every fund import |
 
 ### OpenVC quarterly export playbook
 

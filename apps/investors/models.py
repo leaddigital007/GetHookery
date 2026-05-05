@@ -266,6 +266,55 @@ class Investment(TimestampedModel):
         return f"{self.fund.name} -> {self.deal}{flag}"
 
 
+class PortfolioMention(TimestampedModel):
+    """
+    A heuristic Fund <-> Company link harvested from `Fund.portfolio_notes`
+    or other free-text sources (e.g. GitHub awesome lists, fund website).
+
+    Distinct from `Investment` because we do not have a confirmed Deal — we
+    just know the fund advertises this company in their portfolio. Useful
+    for "what does this fund typically back?" and "which funds know about
+    this company?" views in admin.
+    """
+
+    fund = models.ForeignKey(
+        Fund, on_delete=models.CASCADE, related_name="portfolio_mentions"
+    )
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="mentioned_by_funds"
+    )
+    source_url = models.URLField(
+        blank=True,
+        help_text="URL captured alongside the company name (usually the company website)",
+    )
+    source_label = models.CharField(
+        max_length=40,
+        default="github_awesome",
+        help_text="Where this mention was harvested from",
+    )
+    raw_text = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Original text fragment that produced the mention",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fund", "company"],
+                name="uniq_fund_company_mention",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["fund"]),
+            models.Index(fields=["company"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.fund.name} mentions {self.company.name}"
+
+
 class TaskStatus(models.TextChoices):
     OPEN = "open", "Open"
     DONE = "done", "Done"
