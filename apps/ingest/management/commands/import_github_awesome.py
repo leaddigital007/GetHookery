@@ -121,10 +121,9 @@ class Command(BaseCommand):
                             run.updated()
                         else:
                             run.skipped()
+                    elif dry_run:
+                        run.created()
                     else:
-                        if dry_run:
-                            run.created()
-                            continue
                         check_min, check_max = parse_ticket_range(fund_row.ticket_text)
                         fund = Fund.objects.create(
                             name=fund_row.name,
@@ -150,15 +149,19 @@ class Command(BaseCommand):
                             },
                         )
                         run.created()
+
+                    # Defense in depth: even though the branches above guard
+                    # writes with `if not dry_run`, roll back the per-row
+                    # transaction so any future code added inside this block
+                    # cannot leak data when --dry-run is set.
+                    if dry_run:
+                        transaction.set_rollback(True)
             run.flush_counters()
             run.log(
                 f"Done {spec.source}: seen={run.run.rows_seen} "
                 f"created={run.run.rows_created} updated={run.run.rows_updated} "
                 f"skipped={run.run.rows_skipped}"
             )
-            if dry_run:
-                # Roll back any accidental writes if dry-run was used inside a wider transaction.
-                pass
 
     @staticmethod
     def _merge_into_existing(fund: Fund, row, *, dry_run: bool) -> bool:

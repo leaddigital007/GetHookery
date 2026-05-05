@@ -109,17 +109,36 @@ class FundResource(resources.ModelResource):
         for money_field in ("check_min_usd", "check_max_usd"):
             v = row.get(money_field)
             if isinstance(v, str):
-                cleaned = (
-                    v.replace("$", "")
-                    .replace(",", "")
-                    .replace("k", "000")
-                    .replace("K", "000")
-                    .replace("m", "000000")
-                    .replace("M", "000000")
-                    .strip()
-                )
-                row[money_field] = cleaned or None
+                row[money_field] = self._parse_money(v)
         return super().before_import_row(row, **kwargs)
+
+    @staticmethod
+    def _parse_money(text: str) -> int | None:
+        """Parse strings like ``$1.5M``, ``250k``, ``2,000,000`` into integer USD.
+
+        Returns ``None`` for blank or unparseable input so the field remains
+        unset rather than landing a string in a PositiveBigIntegerField.
+        """
+        if not isinstance(text, str):
+            return text
+        s = text.replace("$", "").replace(",", "").strip()
+        if not s:
+            return None
+        multiplier = 1
+        suffix = s[-1]
+        if suffix in "kK":
+            multiplier = 1_000
+            s = s[:-1].strip()
+        elif suffix in "mM":
+            multiplier = 1_000_000
+            s = s[:-1].strip()
+        elif suffix in "bB":
+            multiplier = 1_000_000_000
+            s = s[:-1].strip()
+        try:
+            return int(float(s) * multiplier)
+        except (TypeError, ValueError):
+            return None
 
 
 class PersonResource(resources.ModelResource):
@@ -171,6 +190,11 @@ class DealResource(resources.ModelResource):
 
     class Meta:
         model = Deal
+        # No DB-level unique constraint exists for Deal, but in practice a
+        # company has at most one round per stage on a given announcement
+        # date. Using this triple as the natural import key keeps re-imports
+        # idempotent instead of duplicating rows.
+        import_id_fields = ("company", "stage", "announced_at")
         fields = (
             "id",
             "company",
@@ -194,4 +218,6 @@ class InvestmentResource(resources.ModelResource):
 
     class Meta:
         model = Investment
+        # Mirrors the model-level UniqueConstraint on (fund, deal).
+        import_id_fields = ("fund", "deal")
         fields = ("id", "fund", "deal", "is_lead", "notes")
