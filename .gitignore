@@ -18,6 +18,7 @@ pip-delete-this-directory.txt
 # Django
 db.sqlite3
 db.sqlite3-journal
+db_*.sqlite3
 staticfiles/
 media/
 local_settings.py
