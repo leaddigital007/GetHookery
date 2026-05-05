@@ -224,6 +224,40 @@ def _normalize_stage_label(label: str) -> str:
     return s
 
 
+def _stages_to_json(value) -> str:
+    """Coerce any "stages" payload from a row into a JSON-encoded list.
+
+    Accepts:
+      - a list of strings (possibly with whitespace / empty / non-str junk)
+      - a free-form string with comma- or semicolon-separated stage labels
+      - empty string, whitespace, None, or anything else -> "[]"
+
+    Empty / whitespace-only items are dropped *both* before and after
+    label normalisation so that the same input always produces the same
+    output regardless of whether it arrives as a list or as a delimited
+    string.
+    """
+    if isinstance(value, list):
+        items = [
+            p for p in value
+            if isinstance(p, str) and p.strip()
+        ]
+    elif isinstance(value, str) and value.strip():
+        items = [
+            p for p in value.replace(";", ",").split(",")
+            if p.strip()
+        ]
+    else:
+        return "[]"
+
+    cleaned = [
+        normalised
+        for normalised in (_normalize_stage_label(p) for p in items)
+        if normalised
+    ]
+    return json.dumps(cleaned)
+
+
 class TagResource(resources.ModelResource):
     class Meta:
         model = Tag
@@ -355,26 +389,10 @@ class FundResource(resources.ModelResource):
 
         # Normalise `stages` into a JSON-encoded list. The Fund model uses a
         # JSONField with default=list, and django-import-export's JSONWidget
-        # calls json.loads() on whatever string we leave here. We MUST
-        # always emit either valid JSON or an empty string, otherwise
-        # values like whitespace, "N/A" or "-" crash the entire import.
-        stages = row.get("stages")
-        if isinstance(stages, list):
-            row["stages"] = json.dumps(
-                [_normalize_stage_label(p) for p in stages if p]
-            )
-        elif isinstance(stages, str) and stages.strip():
-            parts = [
-                _normalize_stage_label(p)
-                for p in stages.replace(";", ",").split(",")
-                if p.strip()
-            ]
-            row["stages"] = json.dumps([p for p in parts if p])
-        else:
-            # Empty string, whitespace, None, or unsupported type -> []
-            # so JSONWidget receives a parseable empty list and the
-            # row reliably gets the model default.
-            row["stages"] = "[]"
+        # calls json.loads() on whatever string we leave here, so we always
+        # emit valid JSON. List- and string-shaped inputs share the same
+        # filter logic via `_stages_to_json` to keep them in sync.
+        row["stages"] = _stages_to_json(row.get("stages"))
 
         for money_field in ("check_min_usd", "check_max_usd"):
             row[money_field] = _parse_money_to_int(row.get(money_field))
