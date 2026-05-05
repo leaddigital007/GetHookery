@@ -96,6 +96,13 @@ class Fund(TimestampedModel):
         max_length=20, choices=FundSource.choices, default=FundSource.MANUAL
     )
     source_url = models.URLField(blank=True)
+    submission_url = models.URLField(
+        blank=True,
+        help_text="URL where this fund accepts pitches (e.g. /connect, /submit).",
+    )
+    contact_email = models.EmailField(
+        blank=True, help_text="General inbound / pitch email if published."
+    )
     thesis_tags = models.ManyToManyField(Tag, blank=True, related_name="funds")
     attached_notes = GenericRelation("Note", related_query_name="fund")
 
@@ -136,6 +143,16 @@ class Warmth(models.TextChoices):
     WARM_1ST = "warm_1st", "Warm (1st-degree)"
 
 
+class OutreachChannel(models.TextChoices):
+    NONE = "", "—"
+    SUBMISSION_FORM = "form", "Submission form"
+    EMAIL = "email", "Email"
+    LINKEDIN_DM = "li_dm", "LinkedIn DM"
+    TWITTER_DM = "x_dm", "X / Twitter DM"
+    WARM_INTRO = "intro", "Warm intro"
+    OTHER = "other", "Other"
+
+
 class Person(TimestampedModel):
     """Investor contact: a fund partner or a solo angel (fund=null)."""
 
@@ -171,6 +188,26 @@ class Person(TimestampedModel):
     warmth = models.CharField(
         max_length=10, choices=Warmth.choices, default=Warmth.COLD
     )
+
+    outreach_channel = models.CharField(
+        max_length=10,
+        choices=OutreachChannel.choices,
+        blank=True,
+        default=OutreachChannel.NONE,
+        help_text="Channel used for the most recent outbound contact.",
+    )
+    outreach_sent_at = models.DateTimeField(null=True, blank=True)
+    outreach_text = models.TextField(
+        blank=True,
+        help_text="Verbatim copy of the most recent message sent.",
+    )
+    replied_at = models.DateTimeField(null=True, blank=True)
+    next_followup_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When to nudge again if no reply by then.",
+    )
+
     internal_notes = models.TextField(blank=True)
     attached_notes = GenericRelation("Note", related_query_name="person")
 
@@ -180,6 +217,8 @@ class Person(TimestampedModel):
             models.Index(fields=["pipeline_stage"]),
             models.Index(fields=["warmth"]),
             models.Index(fields=["email_status"]),
+            models.Index(fields=["outreach_sent_at"]),
+            models.Index(fields=["next_followup_at"]),
         ]
 
     def __str__(self) -> str:

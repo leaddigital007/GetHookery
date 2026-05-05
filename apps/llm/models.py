@@ -47,6 +47,7 @@ class LLMTask(models.TextChoices):
     EXTRACT_COMPANY = "extract_company", "Extract company"
     CATEGORIZE_COMPANY = "categorize_company", "Categorize company"
     EXTRACT_PERSON = "extract_person", "Extract person"
+    FIND_SUBMISSION_FORM = "find_submission_form", "Find submission form"
     DRAFT_OUTREACH = "draft_outreach", "Draft outreach email"
     OTHER = "other", "Other"
 

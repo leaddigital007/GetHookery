@@ -206,6 +206,38 @@
   {% endif %}
 </div>
 
+<h2 style="margin-top: 28px;">Outreach tracker</h2>
+<div class="dashboard-grid">
+  <div class="stat-card">
+    <div class="label">Tier S/1 with channel</div>
+    <div class="value">{{ outreach_metrics.tier_s1_with_channel }}/{{ outreach_metrics.tier_s1_total }}</div>
+    <div class="sub">submission URL or contact email known</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Funds w/ submission URL</div>
+    <div class="value">{{ outreach_metrics.funds_with_submission }}</div>
+    <div class="sub">{{ outreach_metrics.funds_with_email }} also have inbound email</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Persons never contacted</div>
+    <div class="value">{{ outreach_metrics.never }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Sent, awaiting reply</div>
+    <div class="value">{{ outreach_metrics.sent_no_reply }}</div>
+    <div class="sub">{{ outreach_metrics.followup_this_week }} due this week</div>
+  </div>
+  <div class="stat-card" {% if outreach_metrics.followup_overdue %}style="border-left:4px solid #b91c1c;"{% endif %}>
+    <div class="label">Follow-up overdue</div>
+    <div class="value">{{ outreach_metrics.followup_overdue }}</div>
+    <div class="sub">action needed</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Replied</div>
+    <div class="value">{{ outreach_metrics.replied }}</div>
+  </div>
+</div>
+
 {% for section in sections %}
   <div class="section-block">
     <div class="section-head">

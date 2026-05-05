@@ -6,6 +6,7 @@ import re
 
 from django.contrib import admin, messages
 from django.contrib.contenttypes.admin import GenericTabularInline
+from django.db import models
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -115,8 +116,11 @@ def action_set_contacted(modeladmin, request, queryset):
 
 @admin.action(description="Mark as Replied")
 def action_set_replied(modeladmin, request, queryset):
+    now = timezone.now()
     updated = queryset.update(
-        pipeline_stage=PipelineStage.REPLIED, pipeline_changed_at=timezone.now()
+        pipeline_stage=PipelineStage.REPLIED,
+        pipeline_changed_at=now,
+        replied_at=now,
     )
     modeladmin.message_user(request, f"{updated} updated", messages.SUCCESS)
 
@@ -127,6 +131,116 @@ def action_set_passed(modeladmin, request, queryset):
         pipeline_stage=PipelineStage.PASSED, pipeline_changed_at=timezone.now()
     )
     modeladmin.message_user(request, f"{updated} updated", messages.SUCCESS)
+
+
+def _make_outreach_action(channel_value: str, label: str, *, followup_days: int = 7):
+    """Build an action that records outreach sent via a specific channel.
+
+    Sets pipeline_stage=CONTACTED, outreach_sent_at=now, outreach_channel and
+    schedules next_followup_at unless the row already has a manual override.
+    """
+
+    @admin.action(description=f"Sent via {label} (advance to Contacted)")
+    def _action(modeladmin, request, queryset):
+        now = timezone.now()
+        followup = now + timezone.timedelta(days=followup_days)
+        updated = queryset.update(
+            outreach_channel=channel_value,
+            outreach_sent_at=now,
+            pipeline_stage=PipelineStage.CONTACTED,
+            pipeline_changed_at=now,
+            next_followup_at=followup,
+        )
+        modeladmin.message_user(
+            request,
+            f"{updated} marked sent via {label}, follow-up in {followup_days}d.",
+            messages.SUCCESS,
+        )
+
+    _action.__name__ = f"action_outreach_{channel_value or 'none'}"
+    return _action
+
+
+action_outreach_form = _make_outreach_action("form", "submission form")
+action_outreach_email = _make_outreach_action("email", "email")
+action_outreach_li_dm = _make_outreach_action("li_dm", "LinkedIn DM")
+action_outreach_x_dm = _make_outreach_action("x_dm", "X / Twitter DM")
+action_outreach_intro = _make_outreach_action("intro", "warm intro")
+
+
+@admin.action(description="Schedule follow-up: in 7 days")
+def action_followup_7d(modeladmin, request, queryset):
+    when = timezone.now() + timezone.timedelta(days=7)
+    updated = queryset.update(next_followup_at=when)
+    modeladmin.message_user(request, f"{updated} scheduled.", messages.SUCCESS)
+
+
+@admin.action(description="Schedule follow-up: in 14 days")
+def action_followup_14d(modeladmin, request, queryset):
+    when = timezone.now() + timezone.timedelta(days=14)
+    updated = queryset.update(next_followup_at=when)
+    modeladmin.message_user(request, f"{updated} scheduled.", messages.SUCCESS)
+
+
+@admin.action(description="Clear follow-up date")
+def action_followup_clear(modeladmin, request, queryset):
+    updated = queryset.update(next_followup_at=None)
+    modeladmin.message_user(request, f"{updated} cleared.", messages.SUCCESS)
+
+
+@admin.action(description="Export selected with channel context (CSV)")
+def action_export_outreach_csv(modeladmin, request, queryset):
+    """One row per Person with everything needed to draft outreach offline."""
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        'attachment; filename="kubricon-outreach-batch.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "Person",
+            "Role",
+            "Fund",
+            "Tier",
+            "Submission URL",
+            "Contact email",
+            "Email",
+            "Twitter",
+            "LinkedIn",
+            "Pipeline stage",
+            "Channel",
+            "Sent at",
+            "Replied at",
+            "Next follow-up",
+            "Fund thesis (truncated)",
+        ]
+    )
+    qs = queryset.select_related("fund")
+    for p in qs.iterator():
+        fund = p.fund
+        writer.writerow(
+            [
+                p.full_name,
+                p.role,
+                fund.name if fund else "",
+                fund.tier if fund else "",
+                fund.submission_url if fund else "",
+                fund.contact_email if fund else "",
+                p.email,
+                f"@{p.twitter_handle}" if p.twitter_handle else "",
+                p.linkedin_url,
+                p.pipeline_stage,
+                p.outreach_channel,
+                p.outreach_sent_at.isoformat() if p.outreach_sent_at else "",
+                p.replied_at.isoformat() if p.replied_at else "",
+                p.next_followup_at.isoformat() if p.next_followup_at else "",
+                ((fund.thesis_summary or "")[:240]) if fund else "",
+            ]
+        )
+    modeladmin.message_user(
+        request, f"Exported {qs.count()} rows.", messages.SUCCESS
+    )
+    return response
 
 
 @admin.action(description="Set warmth: Warm (1st-degree)")
@@ -242,6 +356,35 @@ class LLMActiveFilter(admin.SimpleListFilter):
         return queryset
 
 
+class SubmissionChannelFilter(admin.SimpleListFilter):
+    """Filter Funds by whether we know how to submit a pitch to them."""
+
+    title = "Submission channel"
+    parameter_name = "submission"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("has_url", "Has submission URL"),
+            ("has_email", "Has contact email"),
+            ("has_any", "Has URL or email"),
+            ("missing", "No URL and no email"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        has_url = ~models.Q(submission_url="")
+        has_email = ~models.Q(contact_email="")
+        if value == "has_url":
+            return queryset.filter(has_url)
+        if value == "has_email":
+            return queryset.filter(has_email)
+        if value == "has_any":
+            return queryset.filter(has_url | has_email)
+        if value == "missing":
+            return queryset.filter(submission_url="", contact_email="")
+        return queryset
+
+
 @admin.action(description="Export selected to CSV")
 def action_export_csv(modeladmin, request, queryset):
     response = HttpResponse(content_type="text/csv")
@@ -322,6 +465,7 @@ class FundAdmin(ImportExportModelAdmin):
         "tier",
         "llm_score_display",
         "llm_active_display",
+        "submission_display",
         "thesis_chips",
         "hq_display",
         "check_range",
@@ -334,11 +478,20 @@ class FundAdmin(ImportExportModelAdmin):
         "tier",
         LLMScoreFilter,
         LLMActiveFilter,
+        SubmissionChannelFilter,
         "thesis_tags",
         "source",
         "hq_country",
     )
-    search_fields = ("name", "slug", "website", "thesis_summary", "portfolio_notes")
+    search_fields = (
+        "name",
+        "slug",
+        "website",
+        "thesis_summary",
+        "portfolio_notes",
+        "submission_url",
+        "contact_email",
+    )
     prepopulated_fields = {"slug": ("name",)}
     autocomplete_fields = ("thesis_tags",)
     filter_horizontal = ("thesis_tags",)
@@ -377,6 +530,10 @@ class FundAdmin(ImportExportModelAdmin):
         (
             "Thesis & portfolio",
             {"fields": ("thesis_summary", "portfolio_notes", "last_activity_at")},
+        ),
+        (
+            "Outreach channel",
+            {"fields": ("submission_url", "contact_email")},
         ),
         (
             "Source",
@@ -442,6 +599,31 @@ class FundAdmin(ImportExportModelAdmin):
             return format_html('<span style="color:#15803d;">●</span>')
         return format_html('<span style="color:#991b1b;">●</span>')
 
+    @admin.display(description="Submit")
+    def submission_display(self, obj: Fund) -> str:
+        chips = []
+        if obj.submission_url:
+            chips.append(
+                format_html(
+                    '<a href="{}" target="_blank" rel="noopener" '
+                    'style="display:inline-block;padding:1px 6px;border-radius:8px;'
+                    "background:#dcfce7;color:#166534;border:1px solid #bbf7d0;"
+                    'font-size:11px;text-decoration:none;">form</a>',
+                    obj.submission_url,
+                )
+            )
+        if obj.contact_email:
+            chips.append(
+                format_html(
+                    '<span style="display:inline-block;padding:1px 6px;border-radius:8px;'
+                    "background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;"
+                    'font-size:11px;">email</span>'
+                )
+            )
+        if not chips:
+            return format_html('<span style="color:#bbb;">—</span>')
+        return format_html("".join(chips))
+
     @admin.display(description="Thesis")
     def thesis_chips(self, obj: Fund) -> str:
         tags = list(obj.thesis_tags.all()[:6])
@@ -459,6 +641,66 @@ class FundAdmin(ImportExportModelAdmin):
         return format_html(chips)
 
 
+class FollowupDueFilter(admin.SimpleListFilter):
+    """Surface persons whose follow-up is due now or overdue."""
+
+    title = "Follow-up due"
+    parameter_name = "followup_due"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("overdue", "Overdue (past)"),
+            ("today", "Due today"),
+            ("week", "Due this week"),
+            ("any", "Has follow-up scheduled"),
+            ("none", "No follow-up scheduled"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        now = timezone.now()
+        if value == "overdue":
+            return queryset.filter(next_followup_at__lt=now)
+        if value == "today":
+            return queryset.filter(
+                next_followup_at__date=now.date()
+            )
+        if value == "week":
+            in_a_week = now + timezone.timedelta(days=7)
+            return queryset.filter(
+                next_followup_at__gte=now, next_followup_at__lte=in_a_week
+            )
+        if value == "any":
+            return queryset.filter(next_followup_at__isnull=False)
+        if value == "none":
+            return queryset.filter(next_followup_at__isnull=True)
+        return queryset
+
+
+class OutreachStatusFilter(admin.SimpleListFilter):
+    title = "Outreach status"
+    parameter_name = "outreach_status"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("never", "Never contacted"),
+            ("sent_no_reply", "Sent, awaiting reply"),
+            ("replied", "Replied"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "never":
+            return queryset.filter(outreach_sent_at__isnull=True)
+        if value == "sent_no_reply":
+            return queryset.filter(
+                outreach_sent_at__isnull=False, replied_at__isnull=True
+            )
+        if value == "replied":
+            return queryset.filter(replied_at__isnull=False)
+        return queryset
+
+
 @admin.register(Person)
 class PersonAdmin(ImportExportModelAdmin):
     resource_classes = [PersonResource]
@@ -466,6 +708,9 @@ class PersonAdmin(ImportExportModelAdmin):
         "full_name",
         "fund",
         "role",
+        "outreach_status_display",
+        "channel_display",
+        "next_followup_at",
         "email",
         "pipeline_stage",
         "warmth",
@@ -476,6 +721,9 @@ class PersonAdmin(ImportExportModelAdmin):
         "pipeline_stage",
         "warmth",
         "email_status",
+        OutreachStatusFilter,
+        FollowupDueFilter,
+        "outreach_channel",
         "fund__tier",
     )
     search_fields = (
@@ -494,8 +742,17 @@ class PersonAdmin(ImportExportModelAdmin):
         action_set_contacted,
         action_set_replied,
         action_set_passed,
+        action_outreach_form,
+        action_outreach_email,
+        action_outreach_li_dm,
+        action_outreach_x_dm,
+        action_outreach_intro,
+        action_followup_7d,
+        action_followup_14d,
+        action_followup_clear,
         action_set_warm_1st,
         action_set_warm_2nd,
+        action_export_outreach_csv,
     )
     fieldsets = (
         (
@@ -510,6 +767,18 @@ class PersonAdmin(ImportExportModelAdmin):
             "Pipeline",
             {"fields": ("pipeline_stage", "pipeline_changed_at", "warmth")},
         ),
+        (
+            "Outreach tracker",
+            {
+                "fields": (
+                    "outreach_channel",
+                    "outreach_sent_at",
+                    "outreach_text",
+                    "replied_at",
+                    "next_followup_at",
+                )
+            },
+        ),
         ("Notes", {"fields": ("internal_notes",)}),
         (
             "Audit",
@@ -517,6 +786,32 @@ class PersonAdmin(ImportExportModelAdmin):
         ),
     )
     readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Outreach", ordering="outreach_sent_at")
+    def outreach_status_display(self, obj: Person) -> str:
+        if obj.replied_at:
+            return format_html(
+                '<span style="color:#15803d;font-weight:600;">replied</span>'
+            )
+        if obj.outreach_sent_at:
+            now = timezone.now()
+            days = (now - obj.outreach_sent_at).days
+            if obj.next_followup_at and obj.next_followup_at < now:
+                colour = "#b91c1c"
+                label = f"sent {days}d • follow-up overdue"
+            else:
+                colour = "#1d4ed8"
+                label = f"sent {days}d ago"
+            return format_html(
+                '<span style="color:{};">{}</span>', colour, label
+            )
+        return format_html('<span style="color:#9ca3af;">—</span>')
+
+    @admin.display(description="Channel")
+    def channel_display(self, obj: Person) -> str:
+        if not obj.outreach_channel:
+            return format_html('<span style="color:#bbb;">—</span>')
+        return obj.get_outreach_channel_display()
 
     @admin.display(description="Links")
     def links(self, obj: Person) -> str:

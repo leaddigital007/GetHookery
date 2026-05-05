@@ -295,6 +295,76 @@ EXTRACT_COMPANY_SYSTEM = (
 )
 
 
+FIND_SUBMISSION_FORM_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "submission_url": {
+            "type": "string",
+            "description": (
+                "Full https URL where this fund accepts inbound pitches "
+                "(e.g. https://a16z.com/connect, https://www.sequoiacap."
+                "com/our-companies/submit-a-pitch). Empty string if "
+                "you don't know with reasonable confidence."
+            ),
+        },
+        "contact_email": {
+            "type": "string",
+            "description": (
+                "General inbound / pitch email if the fund publishes one "
+                "(e.g. info@firm.com, partners@firm.com). Empty string "
+                "if you don't know with reasonable confidence."
+            ),
+        },
+        "alternate_contact": {
+            "type": "string",
+            "description": (
+                "Free-form fallback note: 'Twitter DM only', "
+                "'cold email partner@firm.com', 'no public form, "
+                "warm intros only', 'see firm/contact', etc. Keep "
+                "under 200 chars."
+            ),
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": (
+                "high = you have specific knowledge of this firm's "
+                "submission process; medium = the firm follows a "
+                "common pattern but you are inferring; low = you "
+                "don't know - flag for manual review."
+            ),
+        },
+    },
+    "required": ["submission_url", "contact_email", "alternate_contact", "confidence"],
+}
+
+
+FIND_SUBMISSION_FORM_SYSTEM = (
+    "You are a venture-capital researcher. Given a fund's name, "
+    "website and HQ, return where a founder can submit a pitch. "
+    "Output ONLY valid JSON conforming to the schema. NEVER invent a "
+    "URL or email - if you don't know, return an empty string for "
+    "that field, set confidence=low and explain in alternate_contact. "
+    "Common patterns: a16z uses /connect, Sequoia uses /our-companies/"
+    "submit-a-pitch, Bessemer uses /partner-with-us, Felicis uses "
+    "/founders, Greylock uses a Typeform; many smaller funds use "
+    "/contact, /submit, /pitch, /apply or only accept warm intros."
+)
+
+
+def build_find_submission_form_prompt(*, fund) -> str:
+    parts = [
+        f"Fund name: {fund.name}",
+        f"Website: {fund.website or 'unknown'}",
+        f"HQ: {fund.hq_city or '?'}, {fund.hq_country or '?'}",
+        f"Investment thesis (truncated): {(fund.thesis_summary or '')[:300]!r}",
+        "",
+        "Return: submission_url, contact_email, alternate_contact, confidence.",
+        "Empty strings are fine. Do not guess a URL.",
+    ]
+    return "\n".join(parts)
+
+
 CATEGORIZE_COMPANY_SCHEMA: dict = {
     "type": "object",
     "properties": {

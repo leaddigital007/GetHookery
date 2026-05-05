@@ -16,6 +16,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, Q
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import (
     Company,
@@ -128,6 +129,37 @@ def outreach_dashboard(request):
         for choice in PipelineStage.choices
     }
 
+    now = timezone.now()
+    in_a_week = now + timezone.timedelta(days=7)
+    outreach_metrics = {
+        "never": Person.objects.filter(outreach_sent_at__isnull=True).count(),
+        "sent_no_reply": Person.objects.filter(
+            outreach_sent_at__isnull=False, replied_at__isnull=True
+        ).count(),
+        "replied": Person.objects.filter(replied_at__isnull=False).count(),
+        "followup_overdue": Person.objects.filter(
+            next_followup_at__lt=now, replied_at__isnull=True
+        ).count(),
+        "followup_this_week": Person.objects.filter(
+            next_followup_at__gte=now,
+            next_followup_at__lte=in_a_week,
+            replied_at__isnull=True,
+        ).count(),
+    }
+
+    funds_with_submission = Fund.objects.exclude(submission_url="").count()
+    funds_with_email = Fund.objects.exclude(contact_email="").count()
+    tier_s1_total = Fund.objects.filter(tier__in=[FundTier.S, FundTier.T1]).count()
+    tier_s1_with_channel = (
+        Fund.objects.filter(tier__in=[FundTier.S, FundTier.T1])
+        .filter(Q(submission_url__gt="") | Q(contact_email__gt=""))
+        .count()
+    )
+    outreach_metrics["funds_with_submission"] = funds_with_submission
+    outreach_metrics["funds_with_email"] = funds_with_email
+    outreach_metrics["tier_s1_total"] = tier_s1_total
+    outreach_metrics["tier_s1_with_channel"] = tier_s1_with_channel
+
     # Sections for quick triage.
     sections = [
         _build_section(
@@ -155,8 +187,27 @@ def outreach_dashboard(request):
         ),
     ]
 
-    # Quick saved-search shortcuts.
     saved_searches = [
+        (
+            "Tier S/1 with submission channel (ready to outreach)",
+            f"{fund_url}?tier__in=S%2C1&submission=has_any",
+        ),
+        (
+            "Tier S/1 missing channel (run llm_find_submission_forms)",
+            f"{fund_url}?tier__in=S%2C1&submission=missing",
+        ),
+        (
+            "Persons: follow-up overdue",
+            f"{person_url}?followup_due=overdue",
+        ),
+        (
+            "Persons: never contacted, in Tier S/1 funds",
+            f"{person_url}?outreach_status=never&fund__tier__in=S%2C1",
+        ),
+        (
+            "Persons: sent, awaiting reply",
+            f"{person_url}?outreach_status=sent_no_reply",
+        ),
         (
             "Tier 1 USA, ≤$500k pre-seed",
             f"{fund_url}?tier__exact=1&hq_country=USA&check_min_usd__lte=500000",
@@ -166,16 +217,8 @@ def outreach_dashboard(request):
             f"{fund_url}?tier__exact=1&hq_country__in=United+Kingdom%2CGermany%2CFrance%2CNetherlands%2CSweden",
         ),
         (
-            "Tier 2 active in 2025",
-            f"{fund_url}?tier__exact=2&last_activity_at__gte=2025-01-01",
-        ),
-        (
             "Untagged funds (need review)",
             f"{fund_url}?thesis_tags__isnull=True",
-        ),
-        (
-            "Persons in pipeline (any stage past Identified)",
-            f"{person_url}?pipeline_stage__in=researched,contacted,replied,meeting,dd,term_sheet",
         ),
         (
             "Kubricon competitors",
@@ -201,6 +244,7 @@ def outreach_dashboard(request):
         "total_deals": total_deals,
         "total_investments": total_investments,
         "pipeline_counts": pipeline_counts,
+        "outreach_metrics": outreach_metrics,
         "sections": sections,
         "saved_searches": saved_searches,
     }
