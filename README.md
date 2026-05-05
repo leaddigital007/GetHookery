@@ -101,6 +101,9 @@ GetHookery/
     investors/              domain models, admin, CSV resources
     ingest/                 ingestion pipelines (Phase 2): models, sources,
                             management commands, services
+    llm/                    Phase 3: LLM-driven scoring/tagging/enrichment
+                            (Vertex AI + Gemini), provider abstraction,
+                            LLMCall audit + budget circuit breaker
     site/                   /api/contact view used by the public landing
   worker.py                 long-running APScheduler process (worker dyno)
 ```
@@ -276,6 +279,58 @@ OpenVC has no API. We refresh from a manual export every quarter:
 - X/Twitter monitor (planned: Apify free $5/mo + push webhook)
 - Hunter / Snov enrichment commands
 - Investor-facing landing at `/for-investors` (deck + metrics)
+
+## Phase 3 — LLM enrichment (Vertex AI / Gemini 3.1 Pro)
+
+The `apps/llm` app adds an LLM layer for the heavy data-cleanup tasks
+where keyword rules don't scale (Tier scoring across 2 500+ funds,
+multi-label tagging, comparable-company round extraction, etc.).
+
+Provider abstraction lets us swap Vertex / OpenAI without touching
+call sites; current default is `vertex` + `gemini-3.1-pro`. Every call
+is audited in `LLMCall` with input hash, token counts and USD cost.
+Repeat calls hit the cache by default.
+
+### Required config
+
+Local `.env` and Heroku config vars:
+
+| Var | Default | Purpose |
+| --- | --- | --- |
+| `LLM_DEFAULT_PROVIDER` | `vertex` | `vertex` or `openai` (only `vertex` wired up today). |
+| `LLM_DEFAULT_MODEL` | `gemini-3.1-pro` | Any Vertex model id; `gemini-3.1-flash` is cheaper. |
+| `LLM_MAX_DAILY_USD` | `5` | Hard ceiling on rolling 24h LLM spend. |
+| `GOOGLE_VERTEX_PROJECT_ID` | — | GCP project hosting Vertex AI. |
+| `GOOGLE_VERTEX_LOCATION` | `us-central1` | Vertex region. |
+| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | — | Full service-account JSON pasted as one env var (preferred on Heroku). |
+| `GOOGLE_APPLICATION_CREDENTIALS` | — | Filesystem path to a service-account JSON key (local dev). |
+
+The service-account needs the `Vertex AI User` role
+(`roles/aiplatform.user`) on the project.
+
+### Available LLM commands
+
+```bash
+# Sanity check the wiring (one short prompt, costs ~$0.002)
+python manage.py llm_smoke_test
+
+# Score funds: assign Tier S/1/2/watch + relevance score 0-100
+python manage.py llm_score_funds --limit 5 --dry-run
+python manage.py llm_score_funds --apply --min-score 60
+python manage.py llm_score_funds --apply --only-untiered
+
+# Multi-label tagging (broader coverage than keyword triggers)
+python manage.py llm_smart_tag_funds --limit 50 --dry-run
+python manage.py llm_smart_tag_funds --apply --only-untagged
+
+# Extract comparable companies + their funding rounds
+python manage.py llm_extract_comparables --dry-run
+python manage.py llm_extract_comparables --apply --names Runway,Pika,Suno
+```
+
+All commands run under the same `ingest_run` context as Phase 2
+pipelines, so progress shows up in `/admin/ingest/importrun/` next to
+EDGAR / GitHub jobs.
 
 ## Contact
 

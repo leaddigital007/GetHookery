@@ -43,8 +43,15 @@ INSTALLED_APPS = [
     "import_export",
     "apps.investors",
     "apps.ingest",
+    "apps.llm",
     "apps.site",
 ]
+
+# LLM defaults. Provider/model can be overridden per call via LLMService(...).
+LLM_DEFAULT_PROVIDER = env("LLM_DEFAULT_PROVIDER", default="vertex")
+LLM_DEFAULT_MODEL = env("LLM_DEFAULT_MODEL", default="gemini-3.1-pro")
+# Hard ceiling on rolling 24h LLM spend (USD). Raise via env when needed.
+LLM_MAX_DAILY_USD = float(env("LLM_MAX_DAILY_USD", default="5"))
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

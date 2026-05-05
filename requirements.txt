@@ -9,3 +9,7 @@ django-import-export>=4.4,<5.0
 # Phase 2 — data ingestion
 requests>=2.32,<3.0
 APScheduler>=3.10,<4.0
+
+# Phase 3 — LLM (Vertex AI / Gemini)
+google-genai>=1.0,<2.0
+google-auth>=2.34,<3.0
