@@ -1,8 +1,12 @@
 """Django Admin configuration for the investor CRM."""
 from __future__ import annotations
 
+import csv
+import re
+
 from django.contrib import admin, messages
 from django.contrib.contenttypes.admin import GenericTabularInline
+from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.html import format_html
 from import_export.admin import ImportExportModelAdmin
@@ -35,6 +39,7 @@ from .resources import (
 admin.site.site_header = "Kubricon Investor CRM"
 admin.site.site_title = "Kubricon CRM"
 admin.site.index_title = "Investor pipeline"
+admin.site.index_template = "admin/kubricon_index.html"
 
 
 class NoteInline(GenericTabularInline):
@@ -152,6 +157,141 @@ action_tier_2 = _make_tier_action(FundTier.T2, "Tier 2 (pre-seed)")
 action_tier_watch = _make_tier_action(FundTier.WATCH, "Watch list")
 
 
+_LLM_SCORE_RE = re.compile(r"score=(\d+)")
+_LLM_ACTIVE_RE = re.compile(r"active=(True|False)")
+
+
+def _llm_score(text: str | None) -> int | None:
+    if not text:
+        return None
+    m = _LLM_SCORE_RE.search(text)
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except (TypeError, ValueError):
+        return None
+
+
+def _llm_is_active(text: str | None) -> bool | None:
+    if not text:
+        return None
+    m = _LLM_ACTIVE_RE.search(text)
+    if not m:
+        return None
+    return m.group(1) == "True"
+
+
+class LLMScoreFilter(admin.SimpleListFilter):
+    """Bucket Funds by LLM relevance score (parsed from internal_notes)."""
+
+    title = "LLM score"
+    parameter_name = "llm_score"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("80plus", "80+ (top fit)"),
+            ("60to79", "60–79 (strong fit)"),
+            ("40to59", "40–59 (medium)"),
+            ("under40", "Under 40"),
+            ("missing", "No LLM score yet"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value is None:
+            return queryset
+        if value == "missing":
+            return queryset.exclude(internal_notes__contains="LLM-score:")
+        ranges = {
+            "80plus": (80, 100),
+            "60to79": (60, 79),
+            "40to59": (40, 59),
+            "under40": (0, 39),
+        }
+        lo, hi = ranges[value]
+        # Best-effort scan: filter on internal_notes containing any
+        # `score=NN` between lo and hi. We do a Python-side filter
+        # because parsing inside SQL would be fragile.
+        ids = [
+            f.id
+            for f in queryset.only("id", "internal_notes").iterator()
+            if (s := _llm_score(f.internal_notes)) is not None and lo <= s <= hi
+        ]
+        return queryset.filter(id__in=ids)
+
+
+class LLMActiveFilter(admin.SimpleListFilter):
+    """Filter Funds the LLM marked as currently active vs dormant."""
+
+    title = "LLM active"
+    parameter_name = "llm_active"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("true", "Active"),
+            ("false", "Dormant"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "true":
+            return queryset.filter(internal_notes__contains="active=True")
+        if value == "false":
+            return queryset.filter(internal_notes__contains="active=False")
+        return queryset
+
+
+@admin.action(description="Export selected to CSV")
+def action_export_csv(modeladmin, request, queryset):
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        'attachment; filename="kubricon-funds-export.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "Name",
+            "Tier",
+            "LLM score",
+            "LLM active",
+            "HQ city",
+            "HQ country",
+            "Check min USD",
+            "Check max USD",
+            "Stages",
+            "Thesis tags",
+            "Website",
+            "Source",
+            "Last activity",
+        ]
+    )
+    for f in queryset.iterator():
+        writer.writerow(
+            [
+                f.name,
+                f.tier,
+                _llm_score(f.internal_notes) or "",
+                {True: "active", False: "dormant", None: ""}[
+                    _llm_is_active(f.internal_notes)
+                ],
+                f.hq_city,
+                f.hq_country,
+                f.check_min_usd or "",
+                f.check_max_usd or "",
+                ", ".join(str(s) for s in (f.stages or [])),
+                ", ".join(t.slug for t in f.thesis_tags.all()),
+                f.website,
+                f.source,
+                f.last_activity_at.isoformat() if f.last_activity_at else "",
+            ]
+        )
+    modeladmin.message_user(
+        request, f"Exported {queryset.count()} funds.", messages.SUCCESS
+    )
+    return response
+
+
 class PortfolioMentionInlineForFund(admin.TabularInline):
     model = PortfolioMention
     fk_name = "fund"
@@ -180,6 +320,8 @@ class FundAdmin(ImportExportModelAdmin):
     list_display = (
         "name",
         "tier",
+        "llm_score_display",
+        "llm_active_display",
         "thesis_chips",
         "hq_display",
         "check_range",
@@ -188,7 +330,14 @@ class FundAdmin(ImportExportModelAdmin):
         "portfolio_count",
         "source",
     )
-    list_filter = ("tier", "thesis_tags", "source", "hq_country")
+    list_filter = (
+        "tier",
+        LLMScoreFilter,
+        LLMActiveFilter,
+        "thesis_tags",
+        "source",
+        "hq_country",
+    )
     search_fields = ("name", "slug", "website", "thesis_summary", "portfolio_notes")
     prepopulated_fields = {"slug": ("name",)}
     autocomplete_fields = ("thesis_tags",)
@@ -205,6 +354,7 @@ class FundAdmin(ImportExportModelAdmin):
         action_tier_1,
         action_tier_2,
         action_tier_watch,
+        action_export_csv,
     )
     fieldsets = (
         (
@@ -265,6 +415,32 @@ class FundAdmin(ImportExportModelAdmin):
     @admin.display(description="Portfolio")
     def portfolio_count(self, obj: Fund) -> int:
         return obj.portfolio_mentions.count()
+
+    @admin.display(description="LLM score", ordering="updated_at")
+    def llm_score_display(self, obj: Fund) -> str:
+        score = _llm_score(obj.internal_notes)
+        if score is None:
+            return format_html('<span style="color:#bbb;">—</span>')
+        if score >= 80:
+            colour = "#b30000"
+        elif score >= 60:
+            colour = "#d97706"
+        elif score >= 40:
+            colour = "#2563eb"
+        else:
+            colour = "#666"
+        return format_html(
+            '<span style="font-weight:600;color:{};">{}</span>', colour, score
+        )
+
+    @admin.display(description="Active")
+    def llm_active_display(self, obj: Fund) -> str:
+        active = _llm_is_active(obj.internal_notes)
+        if active is None:
+            return format_html('<span style="color:#bbb;">—</span>')
+        if active:
+            return format_html('<span style="color:#15803d;">●</span>')
+        return format_html('<span style="color:#991b1b;">●</span>')
 
     @admin.display(description="Thesis")
     def thesis_chips(self, obj: Fund) -> str:
