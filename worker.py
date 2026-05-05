@@ -149,7 +149,8 @@ def main() -> None:
 
     logger.info("Worker starting. Jobs registered:")
     for job in scheduler.get_jobs():
-        logger.info("  %s -> %s (next run: %s)", job.id, job.name, job.next_run_time)
+        next_run = getattr(job, "next_run_time", None) or "(scheduled on start)"
+        logger.info("  %s -> %s (next run: %s)", job.id, job.name, next_run)
 
     try:
         scheduler.start()
