@@ -13,6 +13,38 @@ from import_export.widgets import ForeignKeyWidget, ManyToManyWidget
 from .models import Company, Deal, Fund, Investment, Person, Tag
 
 
+def _parse_money_to_int(value) -> int | None:
+    """Parse a free-form money string to an integer USD amount.
+
+    Handles `$`, thousands separators, and `k`/`K`/`m`/`M`/`b`/`B` suffixes,
+    including decimal numbers like `$0.5M` -> 500_000.
+    Returns None for empty / unparseable input.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value) if value == value else None  # filter NaN
+    if not isinstance(value, str):
+        return None
+    s = value.replace("$", "").replace(",", "").replace(" ", "").strip()
+    if not s:
+        return None
+    multiplier = 1
+    if s[-1] in ("k", "K"):
+        multiplier = 1_000
+        s = s[:-1].strip()
+    elif s[-1] in ("m", "M"):
+        multiplier = 1_000_000
+        s = s[:-1].strip()
+    elif s[-1] in ("b", "B"):
+        multiplier = 1_000_000_000
+        s = s[:-1].strip()
+    try:
+        return int(float(s) * multiplier)
+    except (ValueError, TypeError):
+        return None
+
+
 class TagResource(resources.ModelResource):
     class Meta:
         model = Tag
@@ -107,38 +139,8 @@ class FundResource(resources.ModelResource):
             parts = [p.strip() for p in stages.replace(";", ",").split(",") if p.strip()]
             row["stages"] = parts
         for money_field in ("check_min_usd", "check_max_usd"):
-            v = row.get(money_field)
-            if isinstance(v, str):
-                row[money_field] = self._parse_money(v)
+            row[money_field] = _parse_money_to_int(row.get(money_field))
         return super().before_import_row(row, **kwargs)
-
-    @staticmethod
-    def _parse_money(text: str) -> int | None:
-        """Parse strings like ``$1.5M``, ``250k``, ``2,000,000`` into integer USD.
-
-        Returns ``None`` for blank or unparseable input so the field remains
-        unset rather than landing a string in a PositiveBigIntegerField.
-        """
-        if not isinstance(text, str):
-            return text
-        s = text.replace("$", "").replace(",", "").strip()
-        if not s:
-            return None
-        multiplier = 1
-        suffix = s[-1]
-        if suffix in "kK":
-            multiplier = 1_000
-            s = s[:-1].strip()
-        elif suffix in "mM":
-            multiplier = 1_000_000
-            s = s[:-1].strip()
-        elif suffix in "bB":
-            multiplier = 1_000_000_000
-            s = s[:-1].strip()
-        try:
-            return int(float(s) * multiplier)
-        except (TypeError, ValueError):
-            return None
 
 
 class PersonResource(resources.ModelResource):
@@ -190,11 +192,11 @@ class DealResource(resources.ModelResource):
 
     class Meta:
         model = Deal
-        # No DB-level unique constraint exists for Deal, but in practice a
-        # company has at most one round per stage on a given announcement
-        # date. Using this triple as the natural import key keeps re-imports
-        # idempotent instead of duplicating rows.
-        import_id_fields = ("company", "stage", "announced_at")
+        # `id` keeps existing-row updates idempotent on re-import. CSVs
+        # without an `id` column will create new rows; that's expected
+        # because Deal has no natural unique key (a company can have
+        # multiple rounds at the same stage).
+        import_id_fields = ("id",)
         fields = (
             "id",
             "company",
@@ -218,6 +220,8 @@ class InvestmentResource(resources.ModelResource):
 
     class Meta:
         model = Investment
-        # Mirrors the model-level UniqueConstraint on (fund, deal).
+        # Match the model-level UniqueConstraint on ("fund", "deal") so
+        # re-imports update the existing through-row (e.g. flipping
+        # is_lead) instead of duplicating it.
         import_id_fields = ("fund", "deal")
         fields = ("id", "fund", "deal", "is_lead", "notes")

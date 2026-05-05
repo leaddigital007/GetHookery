@@ -104,25 +104,22 @@ class Command(BaseCommand):
                         existing = Fund.objects.filter(slug=slug).first()
 
                     if existing:
-                        was_updated = self._merge_into_existing(existing, fund_row, dry_run=dry_run)
-                        if not dry_run:
-                            upsert_external_ref(
-                                source=spec.source,
-                                external_id=external_id,
-                                target=existing,
-                                payload={
-                                    "name": fund_row.name,
-                                    "stage_text": fund_row.stage_text,
-                                    "ticket_text": fund_row.ticket_text,
-                                    "hq_text": fund_row.hq_text,
-                                },
-                            )
+                        was_updated = self._merge_into_existing(existing, fund_row)
+                        upsert_external_ref(
+                            source=spec.source,
+                            external_id=external_id,
+                            target=existing,
+                            payload={
+                                "name": fund_row.name,
+                                "stage_text": fund_row.stage_text,
+                                "ticket_text": fund_row.ticket_text,
+                                "hq_text": fund_row.hq_text,
+                            },
+                        )
                         if was_updated:
                             run.updated()
                         else:
                             run.skipped()
-                    elif dry_run:
-                        run.created()
                     else:
                         check_min, check_max = parse_ticket_range(fund_row.ticket_text)
                         fund = Fund.objects.create(
@@ -150,12 +147,11 @@ class Command(BaseCommand):
                         )
                         run.created()
 
-                    # Defense in depth: even though the branches above guard
-                    # writes with `if not dry_run`, roll back the per-row
-                    # transaction so any future code added inside this block
-                    # cannot leak data when --dry-run is set.
                     if dry_run:
+                        # Discard everything written inside this atomic block
+                        # so dry-run actually leaves the database untouched.
                         transaction.set_rollback(True)
+
             run.flush_counters()
             run.log(
                 f"Done {spec.source}: seen={run.run.rows_seen} "
@@ -164,7 +160,7 @@ class Command(BaseCommand):
             )
 
     @staticmethod
-    def _merge_into_existing(fund: Fund, row, *, dry_run: bool) -> bool:
+    def _merge_into_existing(fund: Fund, row) -> bool:
         """Fill empty fields without overwriting existing data."""
         dirty = False
         if not fund.website and row.website:
@@ -189,6 +185,6 @@ class Command(BaseCommand):
         if not fund.portfolio_notes and row.portfolio_notes:
             fund.portfolio_notes = row.portfolio_notes
             dirty = True
-        if dirty and not dry_run:
+        if dirty:
             fund.save()
         return dirty
