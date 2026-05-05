@@ -45,6 +45,7 @@ class LLMTask(models.TextChoices):
     SCORE_FUND = "score_fund", "Score fund"
     SMART_TAG_FUND = "smart_tag_fund", "Smart-tag fund"
     EXTRACT_COMPANY = "extract_company", "Extract company"
+    CATEGORIZE_COMPANY = "categorize_company", "Categorize company"
     EXTRACT_PERSON = "extract_person", "Extract person"
     DRAFT_OUTREACH = "draft_outreach", "Draft outreach email"
     OTHER = "other", "Other"

@@ -22,11 +22,12 @@ from django.db.models import Q
 from django.utils.text import slugify
 
 from apps.ingest.services import ingest_run
-from apps.investors.models import Company, Deal, Fund, Investment
+from apps.investors.models import Company, Deal, Fund, Investment, Tag, TagKind
 from apps.llm.models import LLMTask
 from apps.llm.prompts import (
     EXTRACT_COMPANY_SCHEMA,
     EXTRACT_COMPANY_SYSTEM,
+    KNOWN_COMPANY_TAG_SLUGS,
     build_extract_company_prompt,
 )
 from apps.llm.service import LLMBudgetExceeded, LLMService
@@ -170,6 +171,20 @@ class Command(BaseCommand):
 
         service = LLMService()
 
+        category_tags_by_slug: dict[str, Tag] = {
+            t.slug: t for t in Tag.objects.filter(kind=TagKind.CATEGORY)
+        }
+        missing_cat_slugs = [
+            s for s in KNOWN_COMPANY_TAG_SLUGS if s not in category_tags_by_slug
+        ]
+        if missing_cat_slugs:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Missing category tags in DB: {missing_cat_slugs}. "
+                    "Run `python manage.py seed_tags` first."
+                )
+            )
+
         with ingest_run(
             source="llm_extract_comparables",
             command="llm_extract_comparables",
@@ -182,6 +197,7 @@ class Command(BaseCommand):
             companies_touched = 0
             deals_created = 0
             investments_created = 0
+            tag_assignments = 0
             done = 0
             started = time.monotonic()
 
@@ -214,6 +230,10 @@ class Command(BaseCommand):
                 payload = result.parsed or {}
                 company_data = payload.get("company") or {}
                 rounds = payload.get("rounds") or []
+                emitted_cats = payload.get("category_tags") or []
+                cat_slugs = [
+                    s for s in emitted_cats if s in category_tags_by_slug
+                ]
                 total_cost += result.cost_usd
 
                 if not quiet:
@@ -251,6 +271,19 @@ class Command(BaseCommand):
                     },
                 )
                 companies_touched += 1
+
+                if cat_slugs:
+                    existing_slugs = set(
+                        company.category_tags.values_list("slug", flat=True)
+                    )
+                    fresh_tags = [
+                        category_tags_by_slug[s]
+                        for s in cat_slugs
+                        if s not in existing_slugs
+                    ]
+                    if fresh_tags:
+                        company.category_tags.add(*fresh_tags)
+                        tag_assignments += len(fresh_tags)
 
                 for r in rounds:
                     stage = (r.get("stage") or "").strip()[:40]
@@ -309,7 +342,8 @@ class Command(BaseCommand):
 
             run.log(
                 f"Done. companies={companies_touched} new_deals={deals_created} "
-                f"new_investments={investments_created} cost=${total_cost:.4f}"
+                f"new_investments={investments_created} new_tags={tag_assignments} "
+                f"cost=${total_cost:.4f}"
             )
             if dry_run:
                 self.stdout.write(
@@ -319,6 +353,8 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"Wrote {companies_touched} companies, {deals_created} new deals, "
-                        f"{investments_created} new investments. Cost ${total_cost:.4f}."
+                        f"{investments_created} new investments, "
+                        f"{tag_assignments} new category tags. "
+                        f"Cost ${total_cost:.4f}."
                     )
                 )

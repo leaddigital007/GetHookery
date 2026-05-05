@@ -28,13 +28,27 @@ THESIS_TAGS: list[tuple[str, str]] = [
 ]
 
 CATEGORY_TAGS: list[tuple[str, str]] = [
+    # Video generation / editing
     ("ai-video", "AI video"),
     ("text-to-video", "Text-to-video"),
+    ("image-to-video", "Image-to-video"),
+    ("motion-generation", "Motion generation"),
     ("video-editor", "Video editor"),
+    ("video-clipper", "Video clipper / shorts"),
+    ("video-enhancement", "Video enhancement / upscaling"),
+    ("video-captioning", "Video captioning"),
+    ("ai-avatar", "AI avatar / talking head"),
+    ("3d-capture", "3D capture / NeRF"),
+    # Adjacent media generation
     ("image-generation", "Image generation"),
-    ("voice-cloning", "Voice cloning"),
+    ("voice-cloning", "Voice cloning / TTS"),
+    ("ai-music", "AI music generation"),
+    # Platforms / distribution
     ("studio-platform", "Studio platform"),
     ("creator-platform", "Creator platform"),
+    ("stock-media", "Stock media / assets"),
+    ("ai-marketing", "AI marketing / ads"),
+    # Adjacent infra (left from earlier seeding)
     ("infra-database", "Infra - database"),
     ("infra-observability", "Infra - observability"),
     ("dev-platform", "Dev platform"),

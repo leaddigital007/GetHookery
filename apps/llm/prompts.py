@@ -45,6 +45,33 @@ KNOWN_FUND_TAG_SLUGS = [
 ]
 
 
+# Company.category_tags taxonomy (TagKind.CATEGORY). Used by the LLM to
+# classify comparable companies (Runway / Pika / Higgsfield / etc.) so we
+# can group them by what they actually build and surface them in the admin.
+KNOWN_COMPANY_TAG_SLUGS = [
+    "ai-video",
+    "text-to-video",
+    "image-to-video",
+    "motion-generation",
+    "video-editor",
+    "video-clipper",
+    "video-enhancement",
+    "video-captioning",
+    "ai-avatar",
+    "3d-capture",
+    "image-generation",
+    "voice-cloning",
+    "ai-music",
+    "studio-platform",
+    "creator-platform",
+    "stock-media",
+    "ai-marketing",
+    "infra-database",
+    "infra-observability",
+    "dev-platform",
+]
+
+
 SCORE_FUND_SCHEMA: dict = {
     "type": "object",
     "properties": {
@@ -151,11 +178,18 @@ EXTRACT_COMPANY_SCHEMA: dict = {
         },
         "category_tags": {
             "type": "array",
-            "items": {"type": "string"},
-            "description": "Free-form category labels we may map to internal tags later.",
+            "items": {
+                "type": "string",
+                "enum": KNOWN_COMPANY_TAG_SLUGS,
+            },
+            "description": (
+                "Subset of internal company-category slugs that apply. Be "
+                "strict: only emit a slug if the company clearly ships in "
+                "that category."
+            ),
         },
     },
-    "required": ["company", "rounds"],
+    "required": ["company", "rounds", "category_tags"],
 }
 
 
@@ -216,8 +250,63 @@ EXTRACT_COMPANY_SYSTEM = (
     "and follow-on investors. Use only your most reliable knowledge - if a "
     "round detail is unknown, leave the field empty rather than guessing. "
     "Mark is_kubricon_competitor=true only for companies that ship "
-    "generative-video tools end-users actually buy."
+    "generative-video tools end-users actually buy. Always populate "
+    "category_tags using the strict slug list provided in the user message - "
+    "never invent new slugs."
 )
+
+
+CATEGORIZE_COMPANY_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "category_tags": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": KNOWN_COMPANY_TAG_SLUGS,
+            },
+            "description": (
+                "Subset of internal company-category slugs that apply. Be "
+                "strict: only emit a slug if the company clearly ships in "
+                "that category."
+            ),
+        },
+        "is_kubricon_competitor": {
+            "type": "boolean",
+            "description": (
+                "True only if this company directly competes with Kubricon "
+                "(generative video tools end-users actually buy)."
+            ),
+        },
+        "relevance_to_kubricon": {
+            "type": "string",
+            "description": "1-2 sentence explanation; empty if irrelevant.",
+        },
+    },
+    "required": ["category_tags", "is_kubricon_competitor"],
+}
+
+
+CATEGORIZE_COMPANY_SYSTEM = (
+    "You are a venture-data analyst categorising a company we already have "
+    "in our CRM. Pick the strict slugs that match what the company actually "
+    "ships. If the company is unrelated to creative / AI / dev tooling, "
+    "return an empty list. Output JSON only."
+)
+
+
+def build_categorize_company_prompt(*, company) -> str:
+    parts = [
+        f"Company: {company.name}",
+        f"Website: {company.website or 'unknown'}",
+        f"HQ: {company.hq or 'unknown'}",
+        f"Description:\n{(company.description or '').strip() or 'unknown'}",
+        f"Relevance notes:\n{(company.relevance_to_kubricon or '').strip() or '-'}",
+        "",
+        "Allowed category slugs (pick zero or more):",
+        ", ".join(KNOWN_COMPANY_TAG_SLUGS),
+    ]
+    return "\n".join(parts)
 
 
 def build_extract_company_prompt(*, company_name: str, hint: str = "") -> str:
@@ -231,4 +320,10 @@ def build_extract_company_prompt(*, company_name: str, hint: str = "") -> str:
         "stage, amount in USD, announced date (YYYY-MM-DD), lead investor, "
         "all participating investors, and a source URL when you remember one."
     )
+    lines.append("")
+    lines.append(
+        "Category tags - pick every slug that clearly applies "
+        "(zero or more, strict slug match):"
+    )
+    lines.append(", ".join(KNOWN_COMPANY_TAG_SLUGS))
     return "\n".join(lines)
