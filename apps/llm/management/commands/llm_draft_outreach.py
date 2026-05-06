@@ -204,6 +204,8 @@ class Command(BaseCommand):
                     target=person,
                     import_run=run.run,
                     force_refresh=rewrite_empty,
+                    max_output_tokens=4096,
+                    temperature=0.3,
                 )
 
             try:
