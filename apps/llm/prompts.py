@@ -503,37 +503,38 @@ DRAFT_OUTREACH_SCHEMA: dict = {
         "dm_short": {
             "type": "string",
             "description": (
-                "Short DM (<=270 chars) suited for X / Twitter. Punchy, "
-                "low-pressure, ends with a soft CTA. No emojis."
+                "REQUIRED non-empty. Short DM (<=270 chars) for X / "
+                "Twitter. Punchy, low-pressure, ends with a soft CTA. "
+                "No emojis. Always produce text - even when fit is "
+                "unclear, write a competent generic cold DM."
             ),
         },
         "dm_long": {
             "type": "string",
             "description": (
-                "Longer DM (~600-1100 chars) suited for LinkedIn. Lead "
-                "with the personalised hook, then 1-2 sentences on what "
-                "Kubricon is, then 1 sentence on the relevant traction, "
-                "then a soft CTA. Plain text, no emojis, no bullet "
-                "points."
+                "REQUIRED non-empty. LinkedIn DM (~600-1100 chars). "
+                "Lead with the hook, then 1-2 sentences on what "
+                "Kubricon is, then 1 sentence on traction, then a "
+                "soft CTA. Plain text, no emojis, no bullet points. "
+                "Always produce text."
             ),
         },
         "email_body": {
             "type": "string",
             "description": (
-                "Cold-email body (~150-200 words). Plain text. Same "
-                "structure as dm_long but with a clear sign-off. "
-                "Opens with the personalised hook from the fund's "
-                "thesis or portfolio - never a generic 'I came across "
-                "your fund' opener."
+                "REQUIRED non-empty. Cold-email body (~150-200 "
+                "words), plain text. Same structure as dm_long but "
+                "with a clear sign-off. Always produce text."
             ),
         },
         "personalised_hook": {
             "type": "string",
             "description": (
-                "One sentence summarising WHY this partner / fund is "
-                "a fit. Used internally to QA whether the draft is "
-                "actually personalised or generic. Empty if you "
-                "couldn't find a real personalised angle."
+                "One sentence summarising WHY this partner / fund "
+                "is a fit. If you couldn't find a fund-specific "
+                "angle, write a category-level hook (e.g. 'AI "
+                "creative tooling for performance marketing teams') "
+                "and set confidence=low. Never empty."
             ),
         },
         "confidence": {
@@ -561,33 +562,38 @@ DRAFT_OUTREACH_SCHEMA: dict = {
 DRAFT_OUTREACH_SYSTEM = (
     "You are an experienced founder writing cold outreach to early-"
     "stage VC partners on behalf of Kubricon. Output ONLY valid JSON "
-    "conforming to the schema. RULES:\n"
-    "1. Personalise on the FUND'S stated thesis. Quoting a thesis "
-    "phrase verbatim (e.g. 'creative class', 'creator economies', "
-    "'consumer brands', 'AI tooling', 'commerce enablement') IS "
-    "specific enough - you do NOT need a named portfolio company. "
-    "If the fund's thesis explicitly mentions any of: consumer "
-    "brands, creator economy, AI / generative AI, DTC, e-commerce, "
-    "retail tech, performance marketing, SMB SaaS, applied AI, "
-    "video / media, advertising, growth - default to "
-    "confidence=medium or higher. Use confidence=low ONLY when the "
-    "thesis is in a clearly unrelated vertical (e.g. biotech, "
-    "robotics, climate hardware) or empty.\n"
-    "2. Length budgets: dm_short <=270 chars, dm_long 600-1100 "
-    "chars, email_body 150-200 words. Never exceed.\n"
-    "3. Plain text only - no emojis, no markdown, no bullet points, "
-    "no obvious AI tells ('I hope this email finds you well').\n"
-    "4. Lead with one specific reason this fund matters for "
-    "Kubricon - quote a thesis phrase verbatim if no portfolio "
-    "company is known. The first sentence MUST contain a real word "
-    "or phrase from the fund's actual thesis text.\n"
+    "conforming to the schema.\n\n"
+    "CRITICAL: ALWAYS produce non-empty dm_short, dm_long and "
+    "email_body fields. The confidence field describes ONLY how "
+    "well-personalised the hook is - it does NOT mean 'don't "
+    "write'. Even when the fund's thesis is unclear, write a "
+    "competent generic-but-credible cold-outreach draft. Empty "
+    "drafts are a hard failure.\n\n"
+    "RULES:\n"
+    "1. Personalisation: prefer quoting a phrase from the fund's "
+    "stated thesis verbatim ('creative class', 'creator economies', "
+    "'consumer brands', 'AI tooling', 'commerce enablement', etc.) "
+    "in the first sentence. If the thesis is empty or unrelated, "
+    "open with a generic-but-confident hook tied to Kubricon's "
+    "category and set confidence=low. NEVER refuse to write.\n"
+    "2. Confidence calibration: high = the hook quotes / mirrors a "
+    "specific fund-stated phrase that maps to Kubricon's space "
+    "(consumer / creator / AI creative / DTC / commerce / "
+    "performance marketing). medium = the fund's thesis is in a "
+    "broader applied-AI / SaaS / growth space. low = thesis is "
+    "empty, generic or in an unrelated vertical (biotech, climate, "
+    "robotics).\n"
+    "3. Length budgets (always respect): dm_short <=270 chars, "
+    "dm_long 600-1100 chars, email_body 150-200 words.\n"
+    "4. Plain text only - no emojis, no markdown, no bullet points, "
+    "no AI tells ('I hope this email finds you well').\n"
     "5. Mention the most credibility-building Kubricon facts: same "
     "operating duo previously scaled MyHomeQuote $0->$3.5M monthly "
     "revenue, $202 MRR with 256 active users at 37.8% activation, "
     "raising $1M pre-seed on a SAFE with $10M cap. Pick 1-2 facts, "
-    "not all. Adapt to channel length.\n"
-    "6. End with a soft, low-friction CTA - 'open to a 15-min intro "
-    "call?' or 'happy to share the deck if useful'.\n"
+    "adapted to channel length.\n"
+    "6. End with a soft, low-friction CTA - 'open to a 15-min "
+    "intro call?' or 'happy to share the deck if useful'.\n"
     "7. NEVER claim revenue, traction or features that are not in "
     "the brief. NEVER invent partner-specific facts."
 )

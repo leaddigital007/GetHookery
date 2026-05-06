@@ -108,6 +108,15 @@ class Command(BaseCommand):
             help="Skip persons whose outreach_text already has a draft.",
         )
         parser.add_argument(
+            "--rewrite-empty",
+            action="store_true",
+            help=(
+                "Only re-process persons whose existing draft has an "
+                "empty LinkedIn DM body (typical sign of a refused "
+                "low-confidence run). Bypasses the LLMCall cache."
+            ),
+        )
+        parser.add_argument(
             "--min-confidence",
             choices=["low", "medium", "high"],
             default="low",
@@ -129,6 +138,7 @@ class Command(BaseCommand):
         tiers_arg = options.get("tiers")
         primary_only = options.get("primary_only", False)
         missing_only = options.get("missing_only", False)
+        rewrite_empty = options.get("rewrite_empty", False)
         min_conf = options.get("min_confidence") or "low"
         quiet = options.get("quiet", False)
         concurrency = max(1, int(options.get("concurrency") or 1))
@@ -146,6 +156,12 @@ class Command(BaseCommand):
             qs = qs.filter(internal_notes__contains="[PRIMARY]")
         if missing_only:
             qs = qs.exclude(outreach_text__contains=DRAFT_MARKER)
+        if rewrite_empty:
+            qs = qs.filter(
+                outreach_text__contains=(
+                    "LinkedIn DM (~600-1100 chars) ---\n(empty)"
+                )
+            )
         qs = qs.filter(full_name__gt="").order_by(
             "fund__tier", "-fund__check_max_usd", "fund__name", "full_name"
         )
@@ -187,6 +203,7 @@ class Command(BaseCommand):
                     system_instruction=DRAFT_OUTREACH_SYSTEM,
                     target=person,
                     import_run=run.run,
+                    force_refresh=rewrite_empty,
                 )
 
             try:
