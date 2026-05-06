@@ -295,6 +295,131 @@ EXTRACT_COMPANY_SYSTEM = (
 )
 
 
+EXTRACT_PARTNERS_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "partners": {
+            "type": "array",
+            "description": (
+                "Up to 5 of the fund's most important investment "
+                "partners, founders or principals - the people a "
+                "founder would actually pitch. Empty array if you "
+                "don't know - DO NOT GUESS."
+            ),
+            "items": {
+                "type": "object",
+                "properties": {
+                    "full_name": {
+                        "type": "string",
+                        "description": (
+                            "Full name as published. Empty if unknown."
+                        ),
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": (
+                            "Their title at the fund: 'Managing "
+                            "Partner', 'General Partner', 'Founding "
+                            "Partner', 'Principal', 'Investor', etc."
+                        ),
+                    },
+                    "twitter_handle": {
+                        "type": "string",
+                        "description": (
+                            "X / Twitter handle WITHOUT the @ sign. "
+                            "Only fill in if you are confident this is "
+                            "their actual handle. Empty otherwise - "
+                            "DO NOT GUESS or invent handles."
+                        ),
+                    },
+                    "linkedin_url": {
+                        "type": "string",
+                        "description": (
+                            "Their full LinkedIn profile URL "
+                            "(https://www.linkedin.com/in/...). Empty "
+                            "if you don't know. DO NOT GUESS or "
+                            "invent slugs."
+                        ),
+                    },
+                    "focus": {
+                        "type": "string",
+                        "description": (
+                            "One short phrase summarising what this "
+                            "partner is best known for investing in "
+                            "(e.g. 'consumer / DTC', 'AI infra', "
+                            "'brand and creator tools'). Empty if "
+                            "unknown."
+                        ),
+                    },
+                    "is_primary_contact": {
+                        "type": "boolean",
+                        "description": (
+                            "True if this partner is the most likely "
+                            "first point of contact for a Kubricon "
+                            "pitch (consumer / DTC / creator-tools "
+                            "thesis). At most ONE partner per fund "
+                            "should be marked true."
+                        ),
+                    },
+                },
+                "required": [
+                    "full_name",
+                    "role",
+                    "twitter_handle",
+                    "linkedin_url",
+                    "focus",
+                    "is_primary_contact",
+                ],
+            },
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": (
+                "high = you have direct knowledge of this fund's "
+                "team; medium = you know one or two partners but the "
+                "rest is uncertain; low = you don't really know the "
+                "team and would rather not guess."
+            ),
+        },
+    },
+    "required": ["partners", "confidence"],
+}
+
+
+EXTRACT_PARTNERS_SYSTEM = (
+    "You are a venture-capital researcher. Given a fund's name, "
+    "website, HQ and thesis, return the people a founder would "
+    "actually pitch - typically 1-3 Managing / General Partners and "
+    "any operator-investor founder. Output ONLY valid JSON conforming "
+    "to the schema. NEVER invent names, Twitter handles or LinkedIn "
+    "URLs. If you don't know with reasonable confidence, return an "
+    "empty partners array and confidence=low. Quality > quantity: it "
+    "is better to return one accurate partner than five hallucinated "
+    "ones. Use is_primary_contact=true for at most ONE partner per "
+    "fund - prefer the partner whose stated focus best matches "
+    "Kubricon's thesis (consumer / DTC / creator economy / AI "
+    "creative tools / performance marketing)."
+)
+
+
+def build_extract_partners_prompt(*, fund) -> str:
+    parts = [
+        f"Fund name: {fund.name}",
+        f"Website: {fund.website or 'unknown'}",
+        f"HQ: {fund.hq_city or '?'}, {fund.hq_country or '?'}",
+        f"Thesis (truncated): {(fund.thesis_summary or '')[:400]!r}",
+        f"Portfolio notes (truncated): {(fund.portfolio_notes or '')[:300]!r}",
+        "",
+        "Kubricon context (so you can pick the right primary contact):",
+        KUBRICON_THESIS,
+        "",
+        "Return: partners (array, may be empty), confidence.",
+        "Quality > quantity. Empty array is fine if you don't know.",
+    ]
+    return "\n".join(parts)
+
+
 FIND_SUBMISSION_FORM_SCHEMA: dict = {
     "type": "object",
     "properties": {
