@@ -1,0 +1,344 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Outreach worklist | Kubricon CRM{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">Kubricon Investor CRM</a>
+  <small style="font-weight: normal; color: #666;"> · Outreach worklist</small>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin: 16px 0 4px;
+    padding: 8px 12px;
+    background: #fafafa;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+  }
+  .toolbar select { padding: 4px 8px; }
+  .toolbar a.btn-secondary {
+    padding: 4px 12px; background: #fff; border: 1px solid #d1d5db;
+    border-radius: 6px; color: #374151; text-decoration: none; font-size: 13px;
+  }
+
+  .counter-row {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    margin: 12px 0 24px;
+  }
+  .counter-row .pill {
+    padding: 4px 12px; border-radius: 14px; font-size: 12px;
+    border: 1px solid #e5e7eb; background: #fff;
+  }
+  .pill-primary { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+  .pill-overdue { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+  .pill-awaiting { background: #dbeafe; border-color: #bfdbfe; color: #1e40af; }
+  .pill-replied { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
+
+  .bucket {
+    margin: 28px 0 8px;
+    border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+  }
+  .bucket-head {
+    padding: 10px 14px; background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .bucket-head h2 { margin: 0; font-size: 15px; }
+  .bucket-head p { margin: 4px 0 0; color: #6b7280; font-size: 12px; }
+  .bucket-primary .bucket-head { background: #fffbeb; border-bottom-color: #fde68a; }
+  .bucket-overdue .bucket-head { background: #fef2f2; border-bottom-color: #fecaca; }
+  .bucket-replied .bucket-head { background: #f0fdf4; border-bottom-color: #bbf7d0; }
+
+  .card {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) 1fr minmax(220px, 280px);
+    gap: 18px;
+    align-items: start;
+  }
+  .card:last-child { border-bottom: none; }
+  .card-meta { font-size: 13px; }
+  .card-meta .name { font-weight: 600; font-size: 15px; }
+  .card-meta .role { color: #6b7280; font-size: 12px; }
+  .card-meta .fund { color: #2563eb; }
+  .card-meta .badges { margin-top: 6px; }
+  .card-meta .badge {
+    display: inline-block; padding: 1px 6px; margin: 2px 3px 2px 0;
+    border-radius: 8px; font-size: 11px;
+    background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe;
+  }
+  .card-meta .badge-primary {
+    background: #fef3c7; color: #92400e; border-color: #fde68a;
+  }
+  .card-meta .badge-high { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+  .card-meta .badge-low { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+  .card-meta .channel-link {
+    display: inline-block; margin-top: 4px; padding: 4px 10px;
+    background: #1f2937; color: #fff !important; border-radius: 6px;
+    text-decoration: none; font-size: 12px;
+  }
+  .card-meta .channel-link.alt { background: #4b5563; }
+  .card-meta .meta-row { color: #6b7280; font-size: 12px; margin-top: 2px; }
+
+  .card-body details {
+    margin: 0 0 6px; padding: 6px 8px;
+    background: #f9fafb; border-radius: 5px; border: 1px solid #e5e7eb;
+  }
+  .card-body summary {
+    cursor: pointer; font-size: 12px; color: #374151;
+    user-select: none;
+  }
+  .card-body pre {
+    margin: 6px 0 2px; white-space: pre-wrap; font-family: inherit;
+    font-size: 12.5px; line-height: 1.45; color: #1f2937;
+  }
+  .card-body .copy-btn {
+    background: #fff; border: 1px solid #d1d5db; padding: 2px 8px;
+    border-radius: 4px; font-size: 11px; cursor: pointer; margin-left: 6px;
+  }
+
+  .card-actions { display: flex; flex-direction: column; gap: 6px; }
+  .card-actions form { margin: 0; }
+  .card-actions button, .card-actions select {
+    width: 100%; padding: 5px 8px;
+    border-radius: 5px; font-size: 12px;
+    border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+  }
+  .card-actions button.primary {
+    background: #1d4ed8; color: #fff; border-color: #1d4ed8;
+  }
+  .card-actions button.success {
+    background: #15803d; color: #fff; border-color: #15803d;
+  }
+  .card-actions button.warn {
+    background: #d97706; color: #fff; border-color: #d97706;
+  }
+  .card-actions button.skip {
+    background: #f3f4f6; color: #6b7280;
+  }
+  .card-actions .channel-row { display: flex; gap: 4px; }
+  .card-actions .channel-row select { flex: 2; }
+  .card-actions .channel-row button { flex: 3; }
+  .card-actions .small-form { display: flex; gap: 4px; }
+  .card-actions .small-form select { flex: 2; }
+  .card-actions .small-form button { flex: 1; }
+
+  .empty-bucket {
+    padding: 18px; color: #9ca3af; font-style: italic; font-size: 13px;
+  }
+</style>
+<script>
+  function copyText(btn) {
+    const target = btn.parentElement.querySelector('pre');
+    if (!target) return;
+    navigator.clipboard.writeText(target.innerText).then(() => {
+      const orig = btn.innerText;
+      btn.innerText = 'copied';
+      setTimeout(() => { btn.innerText = orig; }, 1200);
+    });
+  }
+</script>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-top: 4px;">Outreach worklist</h1>
+
+<form method="get" class="toolbar">
+  <label>Owner:
+    <select name="owner" onchange="this.form.submit()">
+      {% for value, label in owner_options %}
+        <option value="{{ value }}" {% if owner == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Tiers:
+    <select name="tiers" onchange="this.form.submit()">
+      {% for value, label in tier_options %}
+        <option value="{{ value }}" {% if tiers_filter == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <a class="btn-secondary" href="{% url 'admin:index' %}">← Admin home</a>
+  <a class="btn-secondary" href="{% url 'outreach-dashboard' %}">→ Dashboard</a>
+  <a class="btn-secondary" href="{{ person_admin_base }}">→ Persons admin</a>
+</form>
+
+<div class="counter-row">
+  <span class="pill pill-primary">Today: primary {{ counters.today_primary }}</span>
+  <span class="pill">Other ready {{ counters.today_other }}</span>
+  <span class="pill pill-overdue">Follow-up overdue {{ counters.overdue }}</span>
+  <span class="pill pill-awaiting">Awaiting reply {{ counters.awaiting }}</span>
+  <span class="pill pill-replied">Replied {{ counters.replied }}</span>
+</div>
+
+{% for bucket in buckets %}
+<div class="bucket bucket-{{ bucket.style }}">
+  <div class="bucket-head">
+    <h2>{{ bucket.title }} <span style="color:#6b7280;font-weight:normal;">— {{ bucket.cards|length }}</span></h2>
+    <p>{{ bucket.description }}</p>
+  </div>
+
+  {% if bucket.cards %}
+    {% for c in bucket.cards %}
+      <div class="card">
+        <div class="card-meta">
+          <div class="name">{{ c.person.full_name }}</div>
+          <div class="role">{{ c.person.role|default:"" }}</div>
+          {% if c.fund %}
+            <div><a class="fund" href="/admin/investors/fund/{{ c.fund.id }}/change/">{{ c.fund.name }}</a></div>
+          {% endif %}
+          <div class="badges">
+            {% if c.fund %}<span class="badge">Tier {{ c.fund.tier }}</span>{% endif %}
+            {% if c.fund_score %}<span class="badge">score {{ c.fund_score }}</span>{% endif %}
+            {% if c.primary %}<span class="badge badge-primary">PRIMARY</span>{% endif %}
+            {% if c.is_high_conf %}<span class="badge badge-high">HIGH conf</span>{% else %}<span class="badge badge-low">{{ c.confidence }} conf</span>{% endif %}
+            {% if c.person.assigned_to %}<span class="badge">{{ c.person.get_assigned_to_display }}</span>{% endif %}
+          </div>
+
+          {% if c.suggested_channel == "form" and c.submission_url %}
+            <div class="meta-row" style="margin-top:8px;">→ {{ c.suggested_channel|upper }}</div>
+            <a class="channel-link" href="{{ c.submission_url }}" target="_blank">Open submission form</a>
+          {% elif c.suggested_channel == "email" and c.contact_email %}
+            <div class="meta-row" style="margin-top:8px;">→ EMAIL</div>
+            <a class="channel-link" href="mailto:{{ c.contact_email }}?subject={{ c.email_subject|urlencode }}">{{ c.contact_email }}</a>
+          {% elif c.suggested_channel == "li_dm" and c.linkedin_url %}
+            <div class="meta-row" style="margin-top:8px;">→ LinkedIn DM</div>
+            <a class="channel-link" href="{{ c.linkedin_url }}" target="_blank">Open LinkedIn</a>
+          {% elif c.suggested_channel == "x_dm" and c.twitter_url %}
+            <div class="meta-row" style="margin-top:8px;">→ X / Twitter DM</div>
+            <a class="channel-link" href="{{ c.twitter_url }}" target="_blank">Open X profile</a>
+          {% elif c.suggested_channel == "email" and c.person.email %}
+            <div class="meta-row" style="margin-top:8px;">→ EMAIL (personal)</div>
+            <a class="channel-link" href="mailto:{{ c.person.email }}?subject={{ c.email_subject|urlencode }}">{{ c.person.email }}</a>
+          {% else %}
+            <div class="meta-row" style="margin-top:8px;color:#b91c1c;">⚠ No known channel — research manually</div>
+          {% endif %}
+
+          {% if c.submission_url and c.suggested_channel != "form" %}
+            <a class="channel-link alt" href="{{ c.submission_url }}" target="_blank">+ form</a>
+          {% endif %}
+          {% if c.linkedin_url and c.suggested_channel != "li_dm" %}
+            <a class="channel-link alt" href="{{ c.linkedin_url }}" target="_blank">+ LinkedIn</a>
+          {% endif %}
+          {% if c.twitter_url and c.suggested_channel != "x_dm" %}
+            <a class="channel-link alt" href="{{ c.twitter_url }}" target="_blank">+ X</a>
+          {% endif %}
+
+          {% if c.sent_label %}
+            <div class="meta-row" style="margin-top:8px;{% if c.overdue %}color:#991b1b;{% endif %}">
+              {{ c.sent_label }}{% if c.overdue %} · follow-up overdue{% endif %}
+            </div>
+            {% if c.person.outreach_channel %}
+              <div class="meta-row">via {{ c.person.get_outreach_channel_display }}</div>
+            {% endif %}
+            {% if c.person.next_followup_at %}
+              <div class="meta-row">follow-up: {{ c.person.next_followup_at|date:"M j" }}</div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        <div class="card-body">
+          {% if c.hook %}
+            <div style="margin-bottom:6px;font-size:12px;color:#374151;"><strong>hook:</strong> {{ c.hook }}</div>
+          {% endif %}
+          {% if c.dm_short %}
+            <details>
+              <summary>X / Twitter DM (short) <button class="copy-btn" type="button" onclick="copyText(this)">copy</button></summary>
+              <pre>{{ c.dm_short }}</pre>
+            </details>
+          {% endif %}
+          {% if c.dm_long %}
+            <details {% if c.suggested_channel == "li_dm" %}open{% endif %}>
+              <summary>LinkedIn DM (long) <button class="copy-btn" type="button" onclick="copyText(this)">copy</button></summary>
+              <pre>{{ c.dm_long }}</pre>
+            </details>
+          {% endif %}
+          {% if c.email_body %}
+            <details {% if c.suggested_channel == "email" or c.suggested_channel == "form" %}open{% endif %}>
+              <summary>Email{% if c.email_subject %} — “{{ c.email_subject }}”{% endif %} <button class="copy-btn" type="button" onclick="copyText(this)">copy</button></summary>
+              <pre>{{ c.email_body }}</pre>
+            </details>
+          {% endif %}
+          {% if not c.dm_short and not c.dm_long and not c.email_body %}
+            <div style="font-size:12px;color:#9ca3af;">No draft generated yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="card-actions">
+          {% if not c.person.outreach_sent_at %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_sent">
+              <input type="hidden" name="person_id" value="{{ c.person.id }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <div class="channel-row">
+                <select name="channel">
+                  <option value="form" {% if c.suggested_channel == "form" %}selected{% endif %}>form</option>
+                  <option value="email" {% if c.suggested_channel == "email" %}selected{% endif %}>email</option>
+                  <option value="li_dm" {% if c.suggested_channel == "li_dm" %}selected{% endif %}>LI DM</option>
+                  <option value="x_dm" {% if c.suggested_channel == "x_dm" %}selected{% endif %}>X DM</option>
+                  <option value="intro">intro</option>
+                  <option value="other">other</option>
+                </select>
+                <button type="submit" class="primary">Mark sent</button>
+              </div>
+            </form>
+          {% else %}
+            {% if c.overdue %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mark_followup_sent">
+                <input type="hidden" name="person_id" value="{{ c.person.id }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="warn">Followed up (+7d)</button>
+              </form>
+            {% endif %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="mark_replied">
+              <input type="hidden" name="person_id" value="{{ c.person.id }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="success">Mark replied</button>
+            </form>
+          {% endif %}
+
+          <form method="post" class="small-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="assign">
+            <input type="hidden" name="person_id" value="{{ c.person.id }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <select name="owner">
+              <option value="" {% if not c.person.assigned_to %}selected{% endif %}>Unassigned</option>
+              <option value="igor" {% if c.person.assigned_to == "igor" %}selected{% endif %}>Igor</option>
+              <option value="partner" {% if c.person.assigned_to == "partner" %}selected{% endif %}>Partner</option>
+              <option value="shared" {% if c.person.assigned_to == "shared" %}selected{% endif %}>Shared</option>
+            </select>
+            <button type="submit">Assign</button>
+          </form>
+
+          {% if not c.person.outreach_sent_at %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="skip">
+              <input type="hidden" name="person_id" value="{{ c.person.id }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="skip">Skip / Pass</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-bucket">No items in this bucket.</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

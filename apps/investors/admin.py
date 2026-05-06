@@ -20,6 +20,7 @@ from .models import (
     FundTier,
     Investment,
     Note,
+    OutreachOwner,
     Person,
     PipelineStage,
     PortfolioMention,
@@ -186,6 +187,26 @@ def action_followup_14d(modeladmin, request, queryset):
 def action_followup_clear(modeladmin, request, queryset):
     updated = queryset.update(next_followup_at=None)
     modeladmin.message_user(request, f"{updated} cleared.", messages.SUCCESS)
+
+
+def _make_assign_action(owner_value: str, label: str):
+    @admin.action(description=f"Assign to: {label}")
+    def _action(modeladmin, request, queryset):
+        updated = queryset.update(assigned_to=owner_value)
+        modeladmin.message_user(
+            request, f"{updated} assigned to {label}.", messages.SUCCESS
+        )
+
+    _action.__name__ = f"action_assign_{owner_value or 'unassigned'}"
+    return _action
+
+
+action_assign_igor = _make_assign_action(OutreachOwner.IGOR, "Igor")
+action_assign_partner = _make_assign_action(OutreachOwner.PARTNER, "Partner")
+action_assign_shared = _make_assign_action(OutreachOwner.SHARED, "Shared")
+action_assign_unassigned = _make_assign_action(
+    OutreachOwner.UNASSIGNED, "Unassigned"
+)
 
 
 @admin.action(description="Export selected with channel context (CSV)")
@@ -708,6 +729,7 @@ class PersonAdmin(ImportExportModelAdmin):
         "full_name",
         "fund",
         "role",
+        "assigned_to",
         "outreach_status_display",
         "channel_display",
         "next_followup_at",
@@ -718,6 +740,7 @@ class PersonAdmin(ImportExportModelAdmin):
         "links",
     )
     list_filter = (
+        "assigned_to",
         "pipeline_stage",
         "warmth",
         "email_status",
@@ -738,6 +761,10 @@ class PersonAdmin(ImportExportModelAdmin):
     list_select_related = ("fund",)
     inlines = (NoteInline,)
     actions = (
+        action_assign_igor,
+        action_assign_partner,
+        action_assign_shared,
+        action_assign_unassigned,
         action_set_researched,
         action_set_contacted,
         action_set_replied,
@@ -771,6 +798,7 @@ class PersonAdmin(ImportExportModelAdmin):
             "Outreach tracker",
             {
                 "fields": (
+                    "assigned_to",
                     "outreach_channel",
                     "outreach_sent_at",
                     "outreach_text",

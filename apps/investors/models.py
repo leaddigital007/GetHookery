@@ -153,6 +153,13 @@ class OutreachChannel(models.TextChoices):
     OTHER = "other", "Other"
 
 
+class OutreachOwner(models.TextChoices):
+    UNASSIGNED = "", "Unassigned"
+    IGOR = "igor", "Igor"
+    PARTNER = "partner", "Partner"
+    SHARED = "shared", "Both / shared"
+
+
 class Person(TimestampedModel):
     """Investor contact: a fund partner or a solo angel (fund=null)."""
 
@@ -189,6 +196,13 @@ class Person(TimestampedModel):
         max_length=10, choices=Warmth.choices, default=Warmth.COLD
     )
 
+    assigned_to = models.CharField(
+        max_length=10,
+        choices=OutreachOwner.choices,
+        blank=True,
+        default=OutreachOwner.UNASSIGNED,
+        help_text="Who owns outreach to this person (Igor / partner / shared).",
+    )
     outreach_channel = models.CharField(
         max_length=10,
         choices=OutreachChannel.choices,
@@ -219,6 +233,7 @@ class Person(TimestampedModel):
             models.Index(fields=["email_status"]),
             models.Index(fields=["outreach_sent_at"]),
             models.Index(fields=["next_followup_at"]),
+            models.Index(fields=["assigned_to"]),
         ]
 
     def __str__(self) -> str:

@@ -4,13 +4,19 @@
 {% block content_title %}
   <h1>{% trans 'Site administration' %}</h1>
   <p style="margin: -8px 0 18px 0;">
+    <a href="{% url 'outreach-worklist' %}"
+       style="display:inline-block;padding:6px 14px;background:#1d4ed8;color:#fff;
+              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;
+              margin-right:8px;">
+      ▶ Open Daily Worklist
+    </a>
     <a href="{% url 'outreach-dashboard' %}"
        style="display:inline-block;padding:6px 14px;background:#447e9b;color:#fff;
               border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
       Open Outreach Dashboard
     </a>
     <span style="color:#888;font-size:12px;margin-left:10px;">
-      Pipeline overview, Tier S/1/2 shortlists, saved searches.
+      Worklist = today's queue with copy-able drafts. Dashboard = pipeline overview.
     </span>
   </p>
 {% endblock %}
