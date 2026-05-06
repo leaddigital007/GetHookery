@@ -490,6 +490,138 @@ def build_find_submission_form_prompt(*, fund) -> str:
     return "\n".join(parts)
 
 
+DRAFT_OUTREACH_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "subject_line": {
+            "type": "string",
+            "description": (
+                "Short subject line (under 70 chars) for email "
+                "outreach. Empty string if the channel is a DM."
+            ),
+        },
+        "dm_short": {
+            "type": "string",
+            "description": (
+                "Short DM (<=270 chars) suited for X / Twitter. Punchy, "
+                "low-pressure, ends with a soft CTA. No emojis."
+            ),
+        },
+        "dm_long": {
+            "type": "string",
+            "description": (
+                "Longer DM (~600-1100 chars) suited for LinkedIn. Lead "
+                "with the personalised hook, then 1-2 sentences on what "
+                "Kubricon is, then 1 sentence on the relevant traction, "
+                "then a soft CTA. Plain text, no emojis, no bullet "
+                "points."
+            ),
+        },
+        "email_body": {
+            "type": "string",
+            "description": (
+                "Cold-email body (~150-200 words). Plain text. Same "
+                "structure as dm_long but with a clear sign-off. "
+                "Opens with the personalised hook from the fund's "
+                "thesis or portfolio - never a generic 'I came across "
+                "your fund' opener."
+            ),
+        },
+        "personalised_hook": {
+            "type": "string",
+            "description": (
+                "One sentence summarising WHY this partner / fund is "
+                "a fit. Used internally to QA whether the draft is "
+                "actually personalised or generic. Empty if you "
+                "couldn't find a real personalised angle."
+            ),
+        },
+        "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": (
+                "high = personalised hook is grounded in real fund "
+                "context; medium = hook is plausible but partly "
+                "inferred; low = couldn't personalise, draft is "
+                "essentially generic."
+            ),
+        },
+    },
+    "required": [
+        "subject_line",
+        "dm_short",
+        "dm_long",
+        "email_body",
+        "personalised_hook",
+        "confidence",
+    ],
+}
+
+
+DRAFT_OUTREACH_SYSTEM = (
+    "You are an experienced founder writing cold outreach to early-"
+    "stage VC partners on behalf of Kubricon. Output ONLY valid JSON "
+    "conforming to the schema. RULES:\n"
+    "1. Personalise on the FUND'S thesis or portfolio - NEVER on the "
+    "partner's bio unless their stated focus is the personalisation "
+    "anchor. If no real angle exists, set confidence=low and write "
+    "drafts that are honest about the cold nature.\n"
+    "2. Length budgets: dm_short <=270 chars, dm_long 600-1100 chars, "
+    "email_body 150-200 words. Never exceed.\n"
+    "3. Plain text only - no emojis, no markdown, no bullet points, "
+    "no obvious AI tells ('I hope this email finds you well').\n"
+    "4. Lead with one specific reason this fund matters for Kubricon "
+    "(a portfolio company, a stated thesis, an operating background). "
+    "If a single sentence cannot be specific, the draft is wrong.\n"
+    "5. Mention the most credibility-building Kubricon facts: same "
+    "operating duo previously scaled MyHomeQuote $0->$3.5M monthly "
+    "revenue, $202 MRR with 256 active users at 37.8% activation, "
+    "raising $1M pre-seed on a SAFE with $10M cap. Pick 1-2, not "
+    "all. Adapt to channel.\n"
+    "6. End with a soft, low-friction CTA - 'open to a 15-min intro "
+    "call?' or 'happy to share the deck if useful'.\n"
+    "7. NEVER claim revenue, traction or features that are not in "
+    "the brief. NEVER invent partner-specific facts."
+)
+
+
+def build_draft_outreach_prompt(*, person, fund) -> str:
+    parts = [
+        "Kubricon brief (use this as ground truth, do not invent):",
+        KUBRICON_THESIS,
+        "",
+        f"Recipient: {person.full_name}",
+        f"Role: {person.role or 'unknown'}",
+        f"Internal notes: {(person.internal_notes or '')[:400]!r}",
+        "",
+    ]
+    if fund:
+        parts.extend(
+            [
+                f"Fund: {fund.name}",
+                f"Fund website: {fund.website or '?'}",
+                f"Fund HQ: {fund.hq_city or '?'}, {fund.hq_country or '?'}",
+                f"Fund thesis (truncated): {(fund.thesis_summary or '')[:600]!r}",
+                f"Fund portfolio notes (truncated): "
+                f"{(fund.portfolio_notes or '')[:400]!r}",
+                f"Fund tier: {fund.tier}",
+            ]
+        )
+    else:
+        parts.append("Fund: (angel - no fund context)")
+    parts.extend(
+        [
+            "",
+            "Return: subject_line, dm_short, dm_long, email_body, "
+            "personalised_hook, confidence.",
+            "Empty strings are allowed. Personalised_hook must be honest - "
+            "if you can't find a real angle, leave it empty and set "
+            "confidence=low.",
+        ]
+    )
+    return "\n".join(parts)
+
+
 CATEGORIZE_COMPANY_SCHEMA: dict = {
     "type": "object",
     "properties": {
