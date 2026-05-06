@@ -1,0 +1,143 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Sent log | Kubricon CRM{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">Kubricon Investor CRM</a>
+  <small style="font-weight: normal; color: #666;"> · Sent log</small>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+  .toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+    margin:16px 0; padding:8px 12px; background:#fafafa;
+    border:1px solid #e5e7eb; border-radius:6px; }
+  .toolbar select, .toolbar input[type=text] { padding:4px 8px; }
+  .toolbar a, .toolbar button { padding:4px 12px; background:#fff;
+    border:1px solid #d1d5db; border-radius:6px; color:#374151;
+    text-decoration:none; font-size:13px; cursor:pointer; }
+  .counter-row { display:flex; gap:14px; flex-wrap:wrap; margin:12px 0 24px; }
+  .counter-row .pill { padding:4px 12px; border-radius:14px; font-size:12px;
+    border:1px solid #e5e7eb; background:#fff; }
+  .pill-awaiting { background:#dbeafe; border-color:#bfdbfe; color:#1e40af; }
+  .pill-overdue { background:#fee2e2; border-color:#fecaca; color:#991b1b; }
+  .pill-replied { background:#dcfce7; border-color:#bbf7d0; color:#166534; }
+
+  table.log { width:100%; border-collapse:collapse; background:#fff;
+    border:1px solid #e5e7eb; border-radius:6px; overflow:hidden; font-size:13px; }
+  table.log th, table.log td { padding:8px 10px; border-bottom:1px solid #f1f5f9;
+    text-align:left; vertical-align:top; }
+  table.log th { background:#f9fafb; font-size:12px; color:#374151; }
+  table.log tr.overdue td { background:#fef2f2; }
+  table.log tr.replied td { background:#f0fdf4; }
+  table.log .badge { display:inline-block; padding:1px 6px; margin:1px;
+    border-radius:8px; font-size:10px; background:#eef2ff; color:#3730a3;
+    border:1px solid #c7d2fe; }
+  .empty { padding:30px; text-align:center; color:#9ca3af; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-top:4px;">Sent log
+  <small style="font-weight:normal;color:#6b7280;font-size:14px;">
+    — every outreach you have logged, newest first
+  </small>
+</h1>
+
+<form method="get" class="toolbar">
+  <label>Owner:
+    <select name="owner" onchange="this.form.submit()">
+      {% for v, l in owner_options %}
+        <option value="{{ v }}" {% if owner == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status:
+    <select name="status" onchange="this.form.submit()">
+      {% for v, l in status_options %}
+        <option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Window:
+    <select name="days" onchange="this.form.submit()">
+      {% for v, l in days_options %}
+        <option value="{{ v }}" {% if days == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Search:
+    <input type="text" name="q" value="{{ search_q }}" placeholder="fund or partner">
+  </label>
+  <button type="submit">Apply</button>
+  <a href="{% url 'admin:index' %}">← Admin home</a>
+  <a href="{% url 'outreach-worklist' %}">→ Worklist</a>
+  <a href="{% url 'outreach-dashboard' %}">→ Dashboard</a>
+</form>
+
+<div class="counter-row">
+  <span class="pill">Total sent {{ counters.total }}</span>
+  <span class="pill pill-awaiting">Awaiting reply {{ counters.awaiting }}</span>
+  <span class="pill pill-overdue">Overdue {{ counters.overdue }}</span>
+  <span class="pill pill-replied">Replied {{ counters.replied }}</span>
+  <span class="pill">Last 7d {{ counters.last_7d }}</span>
+</div>
+
+<table class="log">
+  <thead>
+    <tr>
+      <th>Sent at</th>
+      <th>Person</th>
+      <th>Fund (Tier)</th>
+      <th>Channel</th>
+      <th>Owner</th>
+      <th>Pipeline</th>
+      <th>Follow-up</th>
+      <th>Replied</th>
+      <th>Edit</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in rows %}
+      <tr class="{% if p.replied_at %}replied{% elif p.next_followup_at and p.next_followup_at < now %}overdue{% endif %}">
+        <td>{{ p.outreach_sent_at|date:"M j, H:i" }}</td>
+        <td>
+          <strong>{{ p.full_name }}</strong>
+          {% if p.role %}<br><small style="color:#6b7280;">{{ p.role }}</small>{% endif %}
+        </td>
+        <td>
+          {% if p.fund %}
+            <a href="/admin/investors/fund/{{ p.fund.id }}/change/">{{ p.fund.name }}</a>
+            <span class="badge">Tier {{ p.fund.tier }}</span>
+          {% else %}
+            <small style="color:#9ca3af;">(no fund)</small>
+          {% endif %}
+        </td>
+        <td>{{ p.get_outreach_channel_display|default:"—" }}</td>
+        <td>{{ p.get_assigned_to_display|default:"—" }}</td>
+        <td>{{ p.get_pipeline_stage_display }}</td>
+        <td>
+          {% if p.next_followup_at %}
+            {{ p.next_followup_at|date:"M j" }}
+            {% if p.next_followup_at < now and not p.replied_at %}
+              <strong style="color:#991b1b;">overdue</strong>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>{% if p.replied_at %}{{ p.replied_at|date:"M j" }}{% else %}—{% endif %}</td>
+        <td><a href="/admin/investors/person/{{ p.id }}/change/">edit</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="9" class="empty">No outreach has been logged yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if rows|length >= 500 %}
+  <p style="color:#6b7280;font-size:12px;margin-top:8px;">
+    Showing first 500 rows. Narrow the filter or use Persons admin to see more.
+  </p>
+{% endif %}
+{% endblock %}

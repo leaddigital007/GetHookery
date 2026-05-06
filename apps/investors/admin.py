@@ -722,6 +722,40 @@ class OutreachStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
+class MissingChannelFilter(admin.SimpleListFilter):
+    """Find Persons that need a channel manually filled in."""
+
+    title = "Channel coverage"
+    parameter_name = "channel_coverage"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("no_any", "No channel at all (email/X/LI all empty)"),
+            ("no_email", "No email"),
+            ("no_twitter", "No Twitter"),
+            ("no_linkedin", "No LinkedIn"),
+            ("has_all", "Has email + Twitter + LinkedIn"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "no_any":
+            return queryset.filter(
+                email="", twitter_handle="", linkedin_url=""
+            )
+        if value == "no_email":
+            return queryset.filter(email="")
+        if value == "no_twitter":
+            return queryset.filter(twitter_handle="")
+        if value == "no_linkedin":
+            return queryset.filter(linkedin_url="")
+        if value == "has_all":
+            return queryset.exclude(email="").exclude(
+                twitter_handle=""
+            ).exclude(linkedin_url="")
+        return queryset
+
+
 @admin.register(Person)
 class PersonAdmin(ImportExportModelAdmin):
     resource_classes = [PersonResource]
@@ -746,6 +780,7 @@ class PersonAdmin(ImportExportModelAdmin):
         "email_status",
         OutreachStatusFilter,
         FollowupDueFilter,
+        MissingChannelFilter,
         "outreach_channel",
         "fund__tier",
     )

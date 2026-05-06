@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from apps.investors.admin_dashboard import outreach_dashboard
+from apps.investors.admin_sent_log import outreach_sent_log
 from apps.investors.admin_worklist import outreach_worklist
 
 urlpatterns = [
@@ -14,6 +15,11 @@ urlpatterns = [
         "admin/outreach/worklist/",
         outreach_worklist,
         name="outreach-worklist",
+    ),
+    path(
+        "admin/outreach/sent/",
+        outreach_sent_log,
+        name="outreach-sent-log",
     ),
     path("admin/", admin.site.urls),
     path("", include("apps.site.urls")),

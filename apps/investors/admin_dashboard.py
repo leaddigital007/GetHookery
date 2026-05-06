@@ -197,16 +197,32 @@ def outreach_dashboard(request):
             f"{fund_url}?tier__in=S%2C1&submission=missing",
         ),
         (
-            "Persons: follow-up overdue",
-            f"{person_url}?followup_due=overdue",
-        ),
-        (
             "Persons: never contacted, in Tier S/1 funds",
             f"{person_url}?outreach_status=never&fund__tier__in=S%2C1",
         ),
         (
             "Persons: sent, awaiting reply",
             f"{person_url}?outreach_status=sent_no_reply",
+        ),
+        (
+            "Persons: follow-up overdue",
+            f"{person_url}?followup_due=overdue",
+        ),
+        (
+            "Persons: replied (move pipeline)",
+            f"{person_url}?outreach_status=replied",
+        ),
+        (
+            "Persons: NO channel at all (need manual research)",
+            f"{person_url}?channel_coverage=no_any&fund__tier__in=S%2C1",
+        ),
+        (
+            "Persons: missing email only",
+            f"{person_url}?channel_coverage=no_email&fund__tier__in=S%2C1",
+        ),
+        (
+            "Persons: missing LinkedIn only",
+            f"{person_url}?channel_coverage=no_linkedin&fund__tier__in=S%2C1",
         ),
         (
             "Tier 1 USA, ≤$500k pre-seed",

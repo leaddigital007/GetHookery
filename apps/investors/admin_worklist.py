@@ -15,7 +15,7 @@ from typing import Iterable
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
@@ -168,7 +168,19 @@ class Bucket:
     title: str
     description: str
     cards: list[Card] = field(default_factory=list)
+    fund_rows: list = field(default_factory=list)
     style: str = "default"
+
+
+@dataclass
+class DarkFundRow:
+    """Fund without any actionable contact - rendered as a 'needs research' row."""
+
+    fund: Fund
+    score: int | None
+    reason: str
+    has_persons: bool
+    persons_summary: str
 
 
 def _ranking_key(card: Card) -> tuple:
@@ -194,6 +206,7 @@ def outreach_worklist(request):
     owner = (request.GET.get("owner") or "").strip()
     tiers_filter = request.GET.get("tiers", "S,1")
     tiers = [t.strip() for t in tiers_filter.split(",") if t.strip()]
+    search_q = (request.GET.get("q") or "").strip()
 
     base_qs = (
         Person.objects.select_related("fund")
@@ -204,6 +217,12 @@ def outreach_worklist(request):
         base_qs = base_qs.filter(assigned_to="")
     elif owner in {"igor", "partner", "shared"}:
         base_qs = base_qs.filter(assigned_to=owner)
+    if search_q:
+        base_qs = base_qs.filter(
+            Q(full_name__icontains=search_q)
+            | Q(fund__name__icontains=search_q)
+            | Q(role__icontains=search_q)
+        )
 
     today_qs = base_qs.filter(outreach_sent_at__isnull=True)
     overdue_qs = base_qs.filter(
@@ -217,26 +236,94 @@ def outreach_worklist(request):
     replied_qs = base_qs.filter(replied_at__isnull=False)
 
     today_cards = sorted(
-        (_build_card(p) for p in today_qs[:200]),
+        (_build_card(p) for p in today_qs),
         key=_ranking_key,
         reverse=True,
     )
-    primary_cards = [c for c in today_cards if c.primary][:25]
-    other_cards = [c for c in today_cards if not c.primary][:50]
+    primary_cards = [c for c in today_cards if c.primary]
+    other_cards = [c for c in today_cards if not c.primary]
 
     overdue_cards = sorted(
-        (_build_card(p) for p in overdue_qs[:60]),
+        (_build_card(p) for p in overdue_qs),
         key=_ranking_key,
         reverse=True,
     )
     awaiting_cards = sorted(
-        (_build_card(p) for p in awaiting_qs[:60]),
+        (_build_card(p) for p in awaiting_qs),
         key=_ranking_key,
         reverse=True,
     )
     replied_cards = sorted(
-        (_build_card(p) for p in replied_qs[:60]),
+        (_build_card(p) for p in replied_qs),
         key=_ranking_key,
+        reverse=True,
+    )
+
+    # Funds with persons but no fund-level channel + no person-level channel
+    # OR Funds with absolutely no Person attached. Both buckets need manual
+    # research from a human. Funds explicitly skipped (marker in
+    # internal_notes) are hidden so the buckets stay actionable.
+    dark_funds_qs = (
+        Fund.objects.filter(tier__in=tiers)
+        .annotate(person_count=Count("people"))
+        .exclude(internal_notes__contains="[outreach_skipped:")
+    )
+    if search_q:
+        dark_funds_qs = dark_funds_qs.filter(name__icontains=search_q)
+
+    no_person_funds = dark_funds_qs.filter(person_count=0)
+    no_channel_funds = dark_funds_qs.filter(
+        person_count__gt=0,
+        submission_url="",
+        contact_email="",
+    )
+    # Filter the second bucket to those whose persons also lack DM channels.
+    half_dark_rows: list[DarkFundRow] = []
+    for f in no_channel_funds:
+        persons = list(
+            Person.objects.filter(fund=f).values(
+                "full_name", "twitter_handle", "linkedin_url", "email"
+            )
+        )
+        any_dm = any(p["twitter_handle"] or p["linkedin_url"] or p["email"]
+                     for p in persons)
+        if not any_dm:
+            summary = ", ".join(p["full_name"] for p in persons[:3])
+            half_dark_rows.append(
+                DarkFundRow(
+                    fund=f,
+                    score=_extract_score(f.internal_notes),
+                    reason="Fund has no submission URL / email and partners have no DM channels.",
+                    has_persons=True,
+                    persons_summary=summary,
+                )
+            )
+    half_dark_rows.sort(
+        key=lambda r: (
+            {"S": 4, "1": 3, "2": 2, "watch": 1}.get(r.fund.tier, 0),
+            r.fund.check_max_usd or 0,
+        ),
+        reverse=True,
+    )
+
+    no_person_rows = sorted(
+        (
+            DarkFundRow(
+                fund=f,
+                score=_extract_score(f.internal_notes),
+                reason=(
+                    "No partner-level contacts on file. Add at least one "
+                    "Person for this fund or skip / pass."
+                ),
+                has_persons=False,
+                persons_summary="",
+            )
+            for f in no_person_funds
+        ),
+        key=lambda r: (
+            {"S": 4, "1": 3, "2": 2, "watch": 1}.get(r.fund.tier, 0),
+            r.fund.check_max_usd or 0,
+        ),
         reverse=True,
     )
 
@@ -262,6 +349,27 @@ def outreach_worklist(request):
             ),
             cards=other_cards,
             style="other",
+        ),
+        Bucket(
+            title="Funds without partner contacts (manual research needed)",
+            description=(
+                "These funds passed the LLM scoring but we don't have a "
+                "single person on file yet. Either add a partner manually "
+                "from the fund admin (use LinkedIn / fund's /team page) "
+                "or skip to deprioritise."
+            ),
+            fund_rows=no_person_rows,
+            style="dark",
+        ),
+        Bucket(
+            title="Funds with persons but no channel (DM hunting)",
+            description=(
+                "We know the partner names but have no Twitter / LinkedIn "
+                "/ email for them. Add one channel per row to unlock the "
+                "draft and 'Mark sent' button."
+            ),
+            fund_rows=half_dark_rows,
+            style="dark",
         ),
         Bucket(
             title="Follow-ups overdue",
@@ -300,6 +408,8 @@ def outreach_worklist(request):
         "overdue": len(overdue_cards),
         "awaiting": len(awaiting_cards),
         "replied": len(replied_cards),
+        "no_persons": len(no_person_rows),
+        "half_dark": len(half_dark_rows),
         "all_today": today_qs.count(),
     }
 
@@ -325,18 +435,44 @@ def outreach_worklist(request):
         "owner": owner,
         "tier_options": tier_options,
         "tiers_filter": tiers_filter,
+        "search_q": search_q,
         "person_admin_base": reverse("admin:investors_person_changelist"),
+        "person_add_url": reverse("admin:investors_person_add"),
     }
     return render(request, "admin/outreach_worklist.html", context)
 
 
 def _handle_post(request):
-    """Handle the inline action buttons (mark sent, schedule, replied, assign)."""
+    """Handle the inline action buttons (mark sent, schedule, replied, assign, skip_fund)."""
     action = (request.POST.get("action") or "").strip()
     person_id = request.POST.get("person_id")
+    fund_id = request.POST.get("fund_id")
     channel = (request.POST.get("channel") or "").strip()
     owner = (request.POST.get("owner") or "").strip()
     next_url = request.POST.get("next") or request.path
+
+    if action == "skip_fund":
+        if not fund_id:
+            messages.error(request, "Missing fund id.")
+            return HttpResponseRedirect(next_url)
+        try:
+            fund = Fund.objects.get(pk=fund_id)
+        except Fund.DoesNotExist:
+            messages.error(request, "Fund not found.")
+            return HttpResponseRedirect(next_url)
+        marker = f"[outreach_skipped: {timezone.now().date().isoformat()}]"
+        if marker not in (fund.internal_notes or ""):
+            fund.internal_notes = (
+                (fund.internal_notes or "").rstrip() + "\n" + marker
+            ).lstrip()
+            fund.save(update_fields=["internal_notes", "updated_at"])
+        messages.info(
+            request,
+            f"{fund.name} marked as skipped — it will no longer appear in "
+            "the dark-funds buckets. You can revert from the Fund admin "
+            "by removing the [outreach_skipped:...] line in internal_notes.",
+        )
+        return HttpResponseRedirect(next_url)
 
     if not person_id:
         messages.error(request, "Missing person id.")

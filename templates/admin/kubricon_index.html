@@ -3,20 +3,88 @@
 
 {% block content_title %}
   <h1>{% trans 'Site administration' %}</h1>
-  <p style="margin: -8px 0 18px 0;">
+
+  <div style="margin:-8px 0 18px 0;display:flex;flex-wrap:wrap;gap:8px;">
     <a href="{% url 'outreach-worklist' %}"
-       style="display:inline-block;padding:6px 14px;background:#1d4ed8;color:#fff;
-              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;
-              margin-right:8px;">
-      ▶ Open Daily Worklist
+       style="padding:6px 14px;background:#1d4ed8;color:#fff;border-radius:4px;
+              text-decoration:none;font-weight:500;font-size:13px;">
+      ▶ Daily Worklist
+    </a>
+    <a href="{% url 'outreach-sent-log' %}"
+       style="padding:6px 14px;background:#15803d;color:#fff;border-radius:4px;
+              text-decoration:none;font-weight:500;font-size:13px;">
+      ✓ Sent log (who I already wrote to)
     </a>
     <a href="{% url 'outreach-dashboard' %}"
-       style="display:inline-block;padding:6px 14px;background:#447e9b;color:#fff;
-              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
-      Open Outreach Dashboard
+       style="padding:6px 14px;background:#447e9b;color:#fff;border-radius:4px;
+              text-decoration:none;font-weight:500;font-size:13px;">
+      Pipeline dashboard
     </a>
-    <span style="color:#888;font-size:12px;margin-left:10px;">
-      Worklist = today's queue with copy-able drafts. Dashboard = pipeline overview.
-    </span>
-  </p>
+    <a href="/admin/investors/person/add/"
+       style="padding:6px 14px;background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;
+              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
+      + Add new contact
+    </a>
+    <a href="/admin/investors/fund/add/"
+       style="padding:6px 14px;background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;
+              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
+      + Add new fund
+    </a>
+  </div>
+
+  <details style="margin-bottom:22px;background:#f9fafb;border:1px solid #e5e7eb;
+                  border-radius:6px;padding:10px 14px;">
+    <summary style="cursor:pointer;font-weight:600;font-size:14px;">
+      How to use this admin (3-minute read — open this every morning)
+    </summary>
+    <div style="font-size:13px;line-height:1.55;color:#1f2937;margin-top:10px;">
+      <p><strong>Daily routine (do this in order):</strong></p>
+      <ol>
+        <li><strong>Open Daily Worklist.</strong> Top bucket "Today: primary contacts" is the queue
+            you process first. Each card has a copy-able draft, the channel button (X / LinkedIn /
+            email / submission form), and a "Mark sent" button.</li>
+        <li><strong>For each row:</strong> read the hook, copy the right draft (X DM / LI DM /
+            Email — depending on what is suggested), open the channel link, paste, send.
+            Then come back and click <em>Mark sent</em> with the channel you actually used.
+            That timestamps the action and auto-schedules a +7-day follow-up.</li>
+        <li><strong>"Funds without partner contacts" bucket</strong> = funds we like but where we
+            do not have a single Person yet. Click <em>Open fund</em> or <em>+ Add contact</em>
+            to add a partner manually (1-2 names from their /team page is enough).</li>
+        <li><strong>"Funds with persons but no channel" bucket</strong> = we know the partner
+            name but no Twitter / LinkedIn / email. Click the partner, paste their LI URL or
+            X handle into the Person edit form, save. They auto-promote into "Today" buckets.</li>
+        <li><strong>Follow-ups overdue bucket</strong> appears after 7 days. Click "Followed up"
+            on the row after you actually send a nudge.</li>
+        <li><strong>Replied bucket:</strong> when someone answers, click <em>Mark replied</em>.
+            Then move them through pipeline stages from the Person admin
+            (Contacted → Replied → Meeting → DD → Term sheet → Closed).</li>
+      </ol>
+
+      <p style="margin-top:10px;"><strong>Where everything lives (cheat-sheet):</strong></p>
+      <ul style="margin-top:4px;">
+        <li><strong>Worklist</strong> — today's actionable queue. Use this 90% of the time.</li>
+        <li><strong>Sent log</strong> — chronological list of every message I have sent.
+            This answers "did I already write to X?" and "what is overdue?".</li>
+        <li><strong>Pipeline dashboard</strong> — aggregate counters and saved searches.</li>
+        <li><strong>Persons admin</strong> — edit a single contact's email / Twitter /
+            LinkedIn, or use bulk actions on a filtered list.</li>
+        <li><strong>Funds admin</strong> — edit fund-level info (submission_url,
+            contact_email), or add/edit Persons inline from a fund.</li>
+        <li><strong>+ Add new contact</strong> — Person form. Fund field has autocomplete.
+            Use this when you discover a new partner manually.</li>
+      </ul>
+
+      <p style="margin-top:10px;"><strong>Hard rules — do not break:</strong></p>
+      <ul>
+        <li>Never edit the LLM-drafted text in <code>outreach_text</code> from the worklist
+            without copy-pasting first. The drafts cache there for reference.</li>
+        <li>Never click "Mark sent" before you actually sent the message.</li>
+        <li>If you replied or got a reply, click "Mark replied" — otherwise the row
+            stays in "Awaiting reply" forever.</li>
+        <li>The drafts contain factual claims about Igor (solo founder, $1M pre-seed,
+            $10M cap, 659 signups, $202 MRR). Verify the hook before sending,
+            especially personalisation lines about the fund's portfolio.</li>
+      </ul>
+    </div>
+  </details>
 {% endblock %}

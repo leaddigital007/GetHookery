@@ -166,14 +166,22 @@
       {% endfor %}
     </select>
   </label>
+  <label>Search:
+    <input type="text" name="q" value="{{ search_q }}" placeholder="fund or partner name"
+           style="padding:4px 8px;width:220px;">
+  </label>
+  <button type="submit" class="btn-secondary">Apply</button>
   <a class="btn-secondary" href="{% url 'admin:index' %}">← Admin home</a>
   <a class="btn-secondary" href="{% url 'outreach-dashboard' %}">→ Dashboard</a>
   <a class="btn-secondary" href="{{ person_admin_base }}">→ Persons admin</a>
+  <a class="btn-secondary" href="{{ person_add_url }}" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">+ Add new contact</a>
 </form>
 
 <div class="counter-row">
   <span class="pill pill-primary">Today: primary {{ counters.today_primary }}</span>
   <span class="pill">Other ready {{ counters.today_other }}</span>
+  <span class="pill" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">No persons {{ counters.no_persons }}</span>
+  <span class="pill" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">No channel {{ counters.half_dark }}</span>
   <span class="pill pill-overdue">Follow-up overdue {{ counters.overdue }}</span>
   <span class="pill pill-awaiting">Awaiting reply {{ counters.awaiting }}</span>
   <span class="pill pill-replied">Replied {{ counters.replied }}</span>
@@ -182,11 +190,67 @@
 {% for bucket in buckets %}
 <div class="bucket bucket-{{ bucket.style }}">
   <div class="bucket-head">
-    <h2>{{ bucket.title }} <span style="color:#6b7280;font-weight:normal;">— {{ bucket.cards|length }}</span></h2>
+    <h2>{{ bucket.title }} <span style="color:#6b7280;font-weight:normal;">— {% if bucket.fund_rows %}{{ bucket.fund_rows|length }}{% else %}{{ bucket.cards|length }}{% endif %}</span></h2>
     <p>{{ bucket.description }}</p>
   </div>
 
-  {% if bucket.cards %}
+  {% if bucket.fund_rows %}
+    {% for r in bucket.fund_rows %}
+      <div class="card" style="grid-template-columns: minmax(200px, 280px) 1fr minmax(220px, 280px);">
+        <div class="card-meta">
+          <div class="name"><a href="/admin/investors/fund/{{ r.fund.id }}/change/">{{ r.fund.name }}</a></div>
+          <div class="role">{{ r.fund.hq_city|default:"" }}{% if r.fund.hq_country %}, {{ r.fund.hq_country }}{% endif %}</div>
+          <div class="badges">
+            <span class="badge">Tier {{ r.fund.tier }}</span>
+            {% if r.score %}<span class="badge">score {{ r.score }}</span>{% endif %}
+            {% if r.fund.check_max_usd %}<span class="badge">≤${{ r.fund.check_max_usd }}</span>{% endif %}
+          </div>
+          <div class="meta-row" style="margin-top:8px;">{{ r.reason }}</div>
+          {% if r.fund.website %}
+            <a class="channel-link" href="{{ r.fund.website }}" target="_blank">Open fund site</a>
+          {% endif %}
+          {% if r.has_persons %}
+            <div class="meta-row" style="margin-top:6px;color:#374151;">
+              On file: {{ r.persons_summary }}
+            </div>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          <div style="font-size:13px;color:#374151;line-height:1.55;">
+            <strong>What to do:</strong><br>
+            {% if r.has_persons %}
+              1) Open the fund admin →<br>
+              2) Click each person's name to edit →<br>
+              3) Add a Twitter handle, LinkedIn URL, or email →<br>
+              4) Save. The row will auto-promote into "Today" buckets.
+            {% else %}
+              1) Open the fund's website / LinkedIn /team page →<br>
+              2) Identify 1-2 partners (look for "Managing Partner / GP / Founder") →<br>
+              3) Click "+ Add new contact" in the toolbar →<br>
+              4) Fill name, role, fund (autocomplete), and at least one of: Twitter, LinkedIn, email.
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-actions">
+          <a href="/admin/investors/fund/{{ r.fund.id }}/change/" class="btn-secondary"
+             style="text-decoration:none;text-align:center;display:block;padding:5px 8px;border-radius:5px;border:1px solid #d1d5db;font-size:12px;">
+            Open fund (edit/inline-add)
+          </a>
+          <a href="{{ person_add_url }}?fund={{ r.fund.id }}" class="btn-secondary"
+             style="text-decoration:none;text-align:center;display:block;padding:5px 8px;border-radius:5px;background:#1d4ed8;color:#fff;border:1px solid #1d4ed8;font-size:12px;">
+            + Add contact
+          </a>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="skip_fund">
+            <input type="hidden" name="fund_id" value="{{ r.fund.id }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="skip">Skip / Pass fund</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  {% elif bucket.cards %}
     {% for c in bucket.cards %}
       <div class="card">
         <div class="card-meta">
