@@ -117,6 +117,14 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--force-refresh",
+            action="store_true",
+            help=(
+                "Bypass the LLMCall cache for every selected person. "
+                "Use after a prompt change."
+            ),
+        )
+        parser.add_argument(
             "--min-confidence",
             choices=["low", "medium", "high"],
             default="low",
@@ -139,6 +147,7 @@ class Command(BaseCommand):
         primary_only = options.get("primary_only", False)
         missing_only = options.get("missing_only", False)
         rewrite_empty = options.get("rewrite_empty", False)
+        force_refresh = options.get("force_refresh", False) or rewrite_empty
         min_conf = options.get("min_confidence") or "low"
         quiet = options.get("quiet", False)
         concurrency = max(1, int(options.get("concurrency") or 1))
@@ -203,7 +212,7 @@ class Command(BaseCommand):
                     system_instruction=DRAFT_OUTREACH_SYSTEM,
                     target=person,
                     import_run=run.run,
-                    force_refresh=rewrite_empty,
+                    force_refresh=force_refresh,
                     max_output_tokens=4096,
                     temperature=0.3,
                 )
