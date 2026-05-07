@@ -107,16 +107,29 @@
         {% for s in channel_states %}
           <span class="ch-pill-lg {% if s.sent %}sent{% endif %} {% if not s.available %}disabled{% endif %}"
                 data-channel="{{ s.key }}"
-                title="{% if s.sent %}{{ s.label }} sent{% if s.sent_at %} {{ s.sent_at|date:'M j' }}{% endif %} - click to undo{% else %}{% if s.available %}Mark {{ s.label }} as sent{% else %}{{ s.label }} not available — add it on Person admin first{% endif %}{% endif %}">
+                title="{% if s.sent %}{{ s.label }} sent{% if s.sent_at %} {{ s.sent_at|date:'M j' }}{% endif %}{% if s.target %} → {{ s.target }}{% endif %} - click to undo{% else %}{% if s.available %}Mark {{ s.label }} as sent{% if s.target %} ({{ s.target }}){% endif %}{% else %}{{ s.label }}: not available — add it on Person/Fund admin first{% endif %}{% endif %}">
             {% if s.sent %}✓{% else %}+{% endif %} {{ s.label }}
             {% if s.sent and s.sent_at %}<small>{{ s.sent_at|date:"M j" }}</small>{% endif %}
           </span>
         {% endfor %}
       </div>
-      <div class="kmeta" style="margin-top:6px;">
+      <div class="kmeta" style="margin-top:8px;line-height:1.5;">
         Click a chip to mark / unmark a channel as sent. Each chip is an
-        independent send event; you can do all 4 channels and they will each
-        be tracked separately.
+        independent send event — you can mark all four channels and each
+        is tracked separately.
+        <br>
+        Hover the chip to see the exact destination (e.g. "→ ben@superangel.vc (fund)").
+      </div>
+      <div class="kbox" style="margin-top:8px;background:#fafafa;font-size:12px;">
+        <div class="klabel">Channel destinations</div>
+        <ul style="margin:4px 0 0; padding-left:18px;">
+        {% for s in channel_states %}
+          <li>
+            <strong>{{ s.label }}:</strong>
+            {% if s.target %}{{ s.target }}{% else %}<em style="color:#9ca3af;">— not available; add it on Person/Fund admin first</em>{% endif %}
+          </li>
+        {% endfor %}
+        </ul>
       </div>
     </div>
 

@@ -54,6 +54,7 @@ from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from .admin_worklist import (
@@ -195,6 +196,25 @@ def _channel_available(person: Person, fund: Fund | None, channel: str) -> bool:
     return False
 
 
+def _channel_target(person: Person, fund: Fund | None, channel: str) -> str:
+    """Concrete address / handle the channel will route to."""
+    if channel == "form":
+        return (fund.submission_url if fund else "") or ""
+    if channel == "email":
+        if person.email:
+            return f"{person.email} (person)"
+        if fund and fund.contact_email:
+            return f"{fund.contact_email} (fund)"
+        return ""
+    if channel == "li_dm":
+        return person.linkedin_url or ""
+    if channel == "x_dm":
+        return f"@{person.twitter_handle}" if person.twitter_handle else ""
+    if channel == "intro":
+        return "manual / via shared connection"
+    return ""
+
+
 def _person_channel_states(
     person: Person, fund: Fund | None, events_by_channel: dict[str, object] | None = None
 ) -> list[dict]:
@@ -211,6 +231,7 @@ def _person_channel_states(
                 "available": _channel_available(person, fund, key),
                 "sent": bool(event),
                 "sent_at": getattr(event, "sent_at", None),
+                "target": _channel_target(person, fund, key),
             }
         )
     return states
@@ -323,6 +344,7 @@ def _column_sort_key(card: KCard) -> tuple:
     return (tier_rank, score, recency)
 
 
+@never_cache
 @staff_member_required
 def outreach_kanban(request):
     if request.method == "POST":
@@ -757,6 +779,7 @@ def outreach_kanban_touch(request):
                     "available": s["available"],
                     "sent": s["sent"],
                     "sent_at": s["sent_at"].isoformat() if s["sent_at"] else None,
+                    "target": s["target"],
                 }
                 for s in states
             ],
