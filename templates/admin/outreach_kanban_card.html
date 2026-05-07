@@ -1,0 +1,220 @@
+{% load i18n %}
+<div class="kmodal-header">
+  <div class="kmodal-title">
+    <h2>{{ person.full_name }}</h2>
+    <div class="kmodal-subtitle">
+      {% if person.role %}{{ person.role }}{% endif %}
+      {% if fund %} · <a href="{{ fund.website|default_if_none:'#' }}" target="_blank">{{ fund.name }}</a>{% endif %}
+    </div>
+    <div class="kmodal-badges">
+      {% if fund %}<span class="kbadge tier-{{ fund.tier }}">Tier {{ fund.tier }}</span>{% endif %}
+      {% if score %}<span class="kbadge">score {{ score }}</span>{% endif %}
+      {% if column_def %}
+        <span class="kbadge" style="background:{{ column_def.color }};color:#fff;border-color:{{ column_def.color }};">
+          {{ column_def.title }}
+        </span>
+      {% endif %}
+      {% if draft.confidence %}
+        <span class="kbadge {% if draft.confidence == 'high' %}high{% endif %}">{{ draft.confidence }} confidence</span>
+      {% endif %}
+      {% if person.assigned_to %}
+        <span class="kbadge">{{ person.get_assigned_to_display }}</span>
+      {% endif %}
+      {% if person.outreach_channel %}
+        <span class="kbadge">via {{ person.get_outreach_channel_display }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <button type="button" class="kmodal-close" onclick="window.closeKanbanModal()">×</button>
+</div>
+
+<div class="kmodal-grid">
+  <div class="kmodal-col-left">
+    <h3>Fund</h3>
+    {% if fund %}
+      <div class="kmodal-section">
+        <div><strong>{{ fund.name }}</strong></div>
+        <div class="kmeta">
+          {% if fund.hq_city %}{{ fund.hq_city }}{% endif %}{% if fund.hq_country %}, {{ fund.hq_country }}{% endif %}
+          {% if fund.aum_text %} · {{ fund.aum_text }}{% endif %}
+        </div>
+        <div class="kmeta">
+          {% if fund.check_min_usd or fund.check_max_usd %}
+            check
+            {% if fund.check_min_usd %}${{ fund.check_min_usd|floatformat:0 }}{% else %}?{% endif %}
+            -
+            {% if fund.check_max_usd %}${{ fund.check_max_usd|floatformat:0 }}{% else %}?{% endif %}
+          {% endif %}
+          {% if fund.stages %} · stages: {{ fund.stages|join:", " }}{% endif %}
+        </div>
+        <div class="kmeta" style="margin-top:6px;">
+          {% if fund.website %}<a href="{{ fund.website }}" target="_blank">{{ fund.website }}</a>{% endif %}
+          {% if fund.submission_url %} · <a href="{{ fund.submission_url }}" target="_blank">submission form</a>{% endif %}
+          {% if fund.contact_email %} · <a href="mailto:{{ fund.contact_email }}">{{ fund.contact_email }}</a>{% endif %}
+        </div>
+        {% if fund.thesis_summary %}
+          <div class="kbox">
+            <div class="klabel">Thesis</div>
+            <div>{{ fund.thesis_summary }}</div>
+          </div>
+        {% endif %}
+        {% if fund.portfolio_notes %}
+          <div class="kbox">
+            <div class="klabel">Portfolio comparables</div>
+            <div>{{ fund.portfolio_notes }}</div>
+          </div>
+        {% endif %}
+        {% if fund.internal_notes %}
+          <details class="kbox" style="background:#f9fafb;">
+            <summary><strong>LLM scoring notes</strong></summary>
+            <pre style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;">{{ fund.internal_notes }}</pre>
+          </details>
+        {% endif %}
+        <div style="margin-top:8px;">
+          <a class="kbtn" href="{{ fund_admin_url }}" target="_blank">Open fund admin</a>
+        </div>
+      </div>
+    {% else %}
+      <div class="kmeta">No fund attached.</div>
+    {% endif %}
+
+    <h3 style="margin-top:18px;">Contact</h3>
+    <div class="kmodal-section">
+      <div><strong>{{ person.full_name }}</strong>{% if person.role %} · {{ person.role }}{% endif %}</div>
+      {% if person.location %}<div class="kmeta">{{ person.location }}</div>{% endif %}
+      {% if person.bio_short %}
+        <div class="kbox" style="background:#fafafa;">
+          <div class="klabel">Bio</div>
+          <div>{{ person.bio_short|linebreaksbr }}</div>
+        </div>
+      {% endif %}
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+        {% if person.email %}<a class="kbtn" href="mailto:{{ person.email }}">📧 {{ person.email }}</a>{% endif %}
+        {% if twitter_url %}<a class="kbtn alt" href="{{ twitter_url }}" target="_blank">𝕏 @{{ person.twitter_handle }}</a>{% endif %}
+        {% if person.linkedin_url %}<a class="kbtn alt" href="{{ person.linkedin_url }}" target="_blank">in LinkedIn</a>{% endif %}
+        {% if not person.email and not twitter_url and not person.linkedin_url %}
+          <span class="kmeta" style="color:#b91c1c;">⚠ No channel — open person admin to add one.</span>
+        {% endif %}
+      </div>
+      <div style="margin-top:8px;">
+        <a class="kbtn" href="{{ person_admin_url }}" target="_blank">Edit person</a>
+      </div>
+    </div>
+
+    <h3 style="margin-top:18px;">Status</h3>
+    <div class="kmodal-section">
+      <div class="kmeta">
+        Pipeline: <strong>{{ person.get_pipeline_stage_display }}</strong>
+      </div>
+      {% if person.outreach_sent_at %}
+        <div class="kmeta">
+          Sent: {{ person.outreach_sent_at|date:"M j, Y H:i" }} ({{ days_since_sent }}d ago)
+        </div>
+      {% else %}
+        <div class="kmeta">Not sent yet.</div>
+      {% endif %}
+      {% if person.next_followup_at %}
+        <div class="kmeta {% if overdue_days %}kdanger{% endif %}">
+          Follow-up: {{ person.next_followup_at|date:"M j, Y" }}
+          {% if overdue_days %}({{ overdue_days }}d overdue){% endif %}
+        </div>
+      {% endif %}
+      {% if person.replied_at %}
+        <div class="kmeta" style="color:#15803d;">
+          Replied: {{ person.replied_at|date:"M j, Y H:i" }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kmodal-col-right">
+    <h3>
+      Outreach drafts
+      {% if draft.confidence %}<small style="font-weight:normal;color:#6b7280;font-size:12px;">— {{ draft.confidence }} confidence</small>{% endif %}
+    </h3>
+    {% if draft.hook %}
+      <div class="kbox" style="background:#fffbeb;border-color:#fde68a;">
+        <div class="klabel">Personalised hook (verify before sending)</div>
+        <div>{{ draft.hook }}</div>
+      </div>
+    {% endif %}
+
+    {% if draft.dm_short %}
+      <div class="kbox">
+        <div class="klabel">
+          X / Twitter DM (≤270 chars)
+          <button type="button" class="kcopy" data-target="#draft-dm-short">copy</button>
+          {% if twitter_url %}<a class="kbtn" style="float:right;" href="{{ twitter_url }}" target="_blank">Open X profile</a>{% endif %}
+        </div>
+        <pre id="draft-dm-short">{{ draft.dm_short }}</pre>
+      </div>
+    {% endif %}
+
+    {% if draft.dm_long %}
+      <div class="kbox">
+        <div class="klabel">
+          LinkedIn DM (~600-1100 chars)
+          <button type="button" class="kcopy" data-target="#draft-dm-long">copy</button>
+          {% if person.linkedin_url %}<a class="kbtn" style="float:right;" href="{{ person.linkedin_url }}" target="_blank">Open LinkedIn</a>{% endif %}
+        </div>
+        <pre id="draft-dm-long">{{ draft.dm_long }}</pre>
+      </div>
+    {% endif %}
+
+    {% if draft.email_body %}
+      <div class="kbox">
+        <div class="klabel">
+          Email{% if draft.email_subject %} — "{{ draft.email_subject }}"{% endif %}
+          <button type="button" class="kcopy" data-target="#draft-email">copy body</button>
+          {% if draft.email_subject %}
+            <button type="button" class="kcopy" data-target="#draft-email-subject" data-mode="subject">copy subject</button>
+          {% endif %}
+          {% if fund.contact_email %}
+            <a class="kbtn" style="float:right;" href="mailto:{{ fund.contact_email }}?subject={{ draft.email_subject|urlencode }}" target="_blank">Open email to {{ fund.contact_email }}</a>
+          {% elif person.email %}
+            <a class="kbtn" style="float:right;" href="mailto:{{ person.email }}?subject={{ draft.email_subject|urlencode }}" target="_blank">Open email to {{ person.email }}</a>
+          {% elif fund.submission_url %}
+            <a class="kbtn" style="float:right;" href="{{ fund.submission_url }}" target="_blank">Open submission form</a>
+          {% endif %}
+        </div>
+        {% if draft.email_subject %}
+          <div id="draft-email-subject" style="display:none;">{{ draft.email_subject }}</div>
+        {% endif %}
+        <pre id="draft-email">{{ draft.email_body }}</pre>
+      </div>
+    {% endif %}
+
+    {% if not draft.dm_short and not draft.dm_long and not draft.email_body %}
+      <div class="kbox" style="background:#fef2f2;border-color:#fecaca;color:#991b1b;">
+        No draft has been generated for this contact yet. Add at least one
+        channel (email / Twitter / LinkedIn) to the person and re-run
+        <code>llm_draft_outreach</code>.
+      </div>
+    {% endif %}
+
+    <h3 style="margin-top:18px;">Actions</h3>
+    <div class="kmodal-actions" data-person-id="{{ person.id }}">
+      {% if column == "research" or column == "ready" %}
+        <button type="button" class="kbtn primary" data-target-col="sent">✉ Mark sent</button>
+      {% endif %}
+      {% if column == "sent" or column == "followup" %}
+        <button type="button" class="kbtn success" data-target-col="replied">💬 Mark replied</button>
+        {% if column == "followup" %}
+          <button type="button" class="kbtn warn" data-target-col="sent">↻ Followed up (+7d)</button>
+        {% endif %}
+      {% endif %}
+      {% if column == "replied" %}
+        <button type="button" class="kbtn primary" data-target-col="meeting">🤝 Move to meeting</button>
+      {% endif %}
+      {% if column == "meeting" %}
+        <button type="button" class="kbtn success" data-target-col="closed">Close as won/lost</button>
+      {% endif %}
+      {% if column != "closed" %}
+        <button type="button" class="kbtn skip" data-target-col="closed">Skip / Pass</button>
+      {% endif %}
+      {% if column == "closed" %}
+        <button type="button" class="kbtn" data-target-col="ready">↶ Reopen</button>
+      {% endif %}
+    </div>
+  </div>
+</div>

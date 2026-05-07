@@ -49,8 +49,9 @@ from datetime import timedelta
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import render
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -459,6 +460,59 @@ def _apply_transition(person: Person, target: str, channel: str = "") -> dict:
     if person.next_followup_at:
         out["next_followup_at"] = person.next_followup_at.isoformat()
     return out
+
+
+@staff_member_required
+def outreach_kanban_card(request, person_id: int):
+    """Return the modal HTML fragment for a single Person card."""
+    person = get_object_or_404(
+        Person.objects.select_related("fund"), pk=person_id
+    )
+    fund = person.fund
+    draft = _parse_draft(person.outreach_text or "")
+    now = timezone.now()
+    column = _classify(person, now)
+    score = _extract_score(fund.internal_notes if fund else "")
+    suggested_channel = _suggested_channel(person, fund)
+
+    days_since_sent = None
+    overdue_days = None
+    if person.outreach_sent_at:
+        days_since_sent = (now - person.outreach_sent_at).days
+        if (
+            person.next_followup_at
+            and person.next_followup_at < now
+            and not person.replied_at
+        ):
+            overdue_days = (now - person.next_followup_at).days
+
+    # Pre-resolve admin URLs to avoid template lookups inside fragment
+    person_admin_url = reverse(
+        "admin:investors_person_change", args=[person.id]
+    )
+    fund_admin_url = (
+        reverse("admin:investors_fund_change", args=[fund.id]) if fund else ""
+    )
+
+    ctx = {
+        "person": person,
+        "fund": fund,
+        "score": score,
+        "column": column,
+        "column_def": next(
+            (c for c in COLUMN_DEFS if c["key"] == column), None
+        ),
+        "draft": draft,
+        "suggested_channel": suggested_channel,
+        "twitter_url": _twitter_url(person.twitter_handle),
+        "days_since_sent": days_since_sent,
+        "overdue_days": overdue_days,
+        "person_admin_url": person_admin_url,
+        "fund_admin_url": fund_admin_url,
+        "move_url": reverse("outreach-kanban-move"),
+    }
+    html = render_to_string("admin/outreach_kanban_card.html", ctx, request=request)
+    return HttpResponse(html)
 
 
 @staff_member_required

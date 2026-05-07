@@ -39,11 +39,12 @@
   .col-body { flex:1; overflow-y:auto; padding:6px; min-height:60px; }
 
   .kcard { background:#fff; border:1px solid #e5e7eb; border-radius:6px;
-    padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12px;
+    padding:8px 10px; margin-bottom:6px; cursor:pointer; font-size:12px;
     line-height:1.4; box-shadow:0 1px 2px rgba(0,0,0,.04);
-    transition:box-shadow .12s, transform .12s; }
-  .kcard:hover { box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    transition:box-shadow .12s, transform .12s, border-color .12s; }
+  .kcard:hover { box-shadow:0 3px 12px rgba(0,0,0,.10); border-color:#94a3b8; }
   .kcard:active { cursor:grabbing; }
+  .kcard a, .kcard button { cursor:pointer; }
   .kcard.dragging { opacity:0.6; }
   .kcard.flash-ok { background:#dcfce7; transition:background .8s; }
   .kcard.flash-err { background:#fee2e2; transition:background .8s; }
@@ -85,10 +86,72 @@
     height:32px; }
 
   #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-    padding:8px 16px; border-radius:6px; font-size:13px; z-index:100;
+    padding:8px 16px; border-radius:6px; font-size:13px; z-index:200;
     box-shadow:0 4px 14px rgba(0,0,0,.18); display:none; }
   #toast.ok { background:#15803d; color:#fff; }
   #toast.err { background:#b91c1c; color:#fff; }
+
+  /* Modal */
+  #kmodal-backdrop { position:fixed; inset:0; background:rgba(15,23,42,.55);
+    display:none; z-index:150; backdrop-filter:blur(2px); }
+  #kmodal-backdrop.open { display:block; }
+  #kmodal { position:fixed; inset:5% 4% 5% 4%; max-width:1280px;
+    margin:0 auto; background:#fff; border-radius:10px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35); z-index:160;
+    display:none; overflow:hidden; }
+  #kmodal.open { display:flex; flex-direction:column; }
+  #kmodal-body { flex:1; overflow-y:auto; padding:0; }
+  .kmodal-loading { padding:40px; text-align:center; color:#6b7280; }
+  .kmodal-header { display:flex; align-items:flex-start;
+    padding:16px 24px; border-bottom:1px solid #e5e7eb; gap:12px; }
+  .kmodal-title { flex:1; }
+  .kmodal-title h2 { margin:0; font-size:20px; }
+  .kmodal-subtitle { color:#6b7280; font-size:13px; margin-top:2px; }
+  .kmodal-subtitle a { color:#1d4ed8; }
+  .kmodal-badges { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px; }
+  .kbadge { font-size:11px; padding:2px 8px; border-radius:10px;
+    background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+  .kbadge.tier-S { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+  .kbadge.tier-1 { background:#fce7f3; color:#9d174d; border-color:#fbcfe8; }
+  .kbadge.high { background:#dcfce7; color:#166534; border-color:#bbf7d0; }
+  .kmodal-close { background:transparent; border:none; cursor:pointer;
+    font-size:30px; color:#6b7280; line-height:1; padding:0 4px; }
+  .kmodal-close:hover { color:#111827; }
+
+  .kmodal-grid { display:grid; grid-template-columns:1fr 1.4fr;
+    gap:24px; padding:18px 24px; }
+  @media (max-width: 900px) {
+    .kmodal-grid { grid-template-columns:1fr; }
+  }
+  .kmodal-col-left h3, .kmodal-col-right h3 { margin:0 0 6px;
+    font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+    color:#374151; }
+  .kmodal-section { font-size:13px; line-height:1.5; }
+  .kmeta { color:#4b5563; font-size:12px; margin-top:2px; }
+  .kdanger { color:#b91c1c; }
+  .klabel { font-size:11px; text-transform:uppercase;
+    letter-spacing:.05em; color:#6b7280; font-weight:600;
+    margin-bottom:3px; }
+  .kbox { margin-top:8px; padding:8px 10px; background:#fff;
+    border:1px solid #e5e7eb; border-radius:6px; font-size:13px; }
+  .kbox pre { margin:6px 0 0; white-space:pre-wrap; font-family:inherit;
+    font-size:12.5px; line-height:1.5; color:#111827; }
+  .kbox details summary { cursor:pointer; }
+
+  .kbtn { display:inline-block; padding:5px 10px; font-size:12px;
+    background:#fff; color:#374151; border:1px solid #d1d5db;
+    border-radius:5px; cursor:pointer; text-decoration:none;
+    line-height:1.3; }
+  .kbtn:hover { background:#f9fafb; }
+  .kbtn.primary { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+  .kbtn.success { background:#15803d; color:#fff; border-color:#15803d; }
+  .kbtn.warn { background:#d97706; color:#fff; border-color:#d97706; }
+  .kbtn.skip { background:#f3f4f6; color:#6b7280; }
+  .kbtn.alt { background:#f9fafb; }
+  .kcopy { background:#fff; border:1px solid #d1d5db; padding:1px 8px;
+    border-radius:4px; font-size:11px; cursor:pointer; margin-left:6px; }
+  .kmodal-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .kmodal-actions .kbtn { padding:8px 14px; font-size:13px; }
 </style>
 {% endblock %}
 
@@ -195,6 +258,11 @@
 
 <div id="toast"></div>
 
+<div id="kmodal-backdrop" onclick="window.closeKanbanModal()"></div>
+<div id="kmodal" role="dialog" aria-modal="true">
+  <div id="kmodal-body"><div class="kmodal-loading">Loading…</div></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 (function() {
@@ -266,7 +334,7 @@
       animation: 140,
       ghostClass: 'ghost-drop',
       dragClass: 'dragging',
-      filter: '.fund-card',
+      filter: '.fund-card, a, button',
       preventOnFilter: false,
       onEnd: function(evt) {
         const card = evt.item;
@@ -283,7 +351,6 @@
             suggested || "email"
           );
           if (channel === null) {
-            // Cancel: rollback
             evt.from.appendChild(card);
             return;
           }
@@ -291,6 +358,102 @@
         move(personId, toCol, channel, card, fromCol);
       },
     });
+  });
+
+  /* ---------------- Modal ---------------- */
+  const backdrop = document.getElementById('kmodal-backdrop');
+  const modal = document.getElementById('kmodal');
+  const modalBody = document.getElementById('kmodal-body');
+  const CARD_URL_TPL = "{% url 'outreach-kanban' %}card/{ID}/";
+
+  function openModal(personId) {
+    modalBody.innerHTML = '<div class="kmodal-loading">Loading…</div>';
+    backdrop.classList.add('open');
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    fetch(CARD_URL_TPL.replace('{ID}', personId), {
+      credentials: 'same-origin',
+      headers: { 'Accept': 'text/html' },
+    })
+      .then(r => r.text())
+      .then(html => {
+        modalBody.innerHTML = html;
+        wireModalActions(personId);
+      })
+      .catch(err => {
+        modalBody.innerHTML = '<div class="kmodal-loading">Failed to load: ' + err.message + '</div>';
+      });
+  }
+
+  window.closeKanbanModal = function() {
+    backdrop.classList.remove('open');
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) {
+      window.closeKanbanModal();
+    }
+  });
+
+  function wireModalActions(personId) {
+    modalBody.querySelectorAll('.kcopy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sel = btn.dataset.target;
+        const node = modalBody.querySelector(sel);
+        if (!node) return;
+        const text = node.textContent || node.innerText || '';
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'copied';
+          setTimeout(() => { btn.textContent = orig; }, 1200);
+        });
+      });
+    });
+
+    modalBody.querySelectorAll('[data-target-col]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.targetCol;
+        const card = document.querySelector('.kcard[data-person-id="' + personId + '"]');
+        let channel = '';
+        if (target === 'sent') {
+          const suggested = card ? card.dataset.suggestedChannel || '' : '';
+          channel = prompt(
+            'Confirm channel used (form / email / li_dm / x_dm / intro / other):',
+            suggested || 'email'
+          );
+          if (channel === null) return;
+        }
+        const fromCol = card ? card.parentNode.dataset.col : 'unknown';
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        move(personId, target, channel, card || document.createElement('div'), fromCol)
+          .then(() => {
+            // Move the kanban card to the target column visually.
+            const targetCol = document.querySelector('.sortable[data-col="' + target + '"]');
+            if (card && targetCol && card.parentNode !== targetCol) {
+              targetCol.prepend(card);
+              updateCounts();
+            }
+            window.closeKanbanModal();
+          })
+          .catch(() => {
+            btn.disabled = false;
+            btn.style.opacity = '';
+          });
+      });
+    });
+  }
+
+  // Click on a card opens modal. Ignore clicks that should open the channel
+  // (links, buttons inside the card).
+  document.addEventListener('click', e => {
+    const card = e.target.closest('.kcard');
+    if (!card) return;
+    if (e.target.closest('a, button')) return;
+    if (!card.dataset.personId) return;
+    openModal(card.dataset.personId);
   });
 })();
 </script>
