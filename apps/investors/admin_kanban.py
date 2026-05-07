@@ -465,14 +465,30 @@ def _apply_transition(
             person=person, direction=OutreachDirection.OUTBOUND
         ).exists()
         if not outbound_exists:
-            ch = channel or _suggested_channel(person, person.fund) or OutreachChannel.OTHER
-            OutreachEvent.objects.create(
-                person=person,
-                channel=ch,
-                direction=OutreachDirection.OUTBOUND,
-                sent_at=now,
-                actor=actor,
-            )
+            ch = channel or _suggested_channel(person, person.fund)
+            # Only auto-create an event if we have a real channel to record.
+            # If the only available option is "intro" we still record it
+            # since warm intros are always conceptually possible.
+            if ch and (
+                _channel_available(person, person.fund, ch)
+                or ch == OutreachChannel.INTRO
+            ):
+                OutreachEvent.objects.create(
+                    person=person,
+                    channel=ch,
+                    direction=OutreachDirection.OUTBOUND,
+                    sent_at=now,
+                    actor=actor,
+                )
+            else:
+                return {
+                    "ok": False,
+                    "error": (
+                        "No usable channel for this person. Add at least "
+                        "one of email / Twitter / LinkedIn (or a fund "
+                        "submission URL) before marking sent."
+                    ),
+                }
         if person.next_followup_at is None or person.next_followup_at < now:
             person.next_followup_at = now + timedelta(days=7)
             fields_to_update.add("next_followup_at")
@@ -675,6 +691,25 @@ def outreach_kanban_touch(request):
             sent = False
             sent_at_iso = None
         else:
+            # Validate the channel is actually usable before creating an
+            # event. Without this the user can mark "email sent" for a
+            # person whose email is empty.
+            if not _channel_available(person, person.fund, channel):
+                hint = {
+                    "form": "Add a Submission URL to the fund admin first.",
+                    "email": "Add a contact email on the Person or Fund admin first.",
+                    "li_dm": "Add a LinkedIn URL on the Person admin first.",
+                    "x_dm": "Add a Twitter handle on the Person admin first.",
+                    "intro": "Warm intro is always allowed (no contact needed).",
+                }.get(channel, "Channel requires a contact field.")
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": f"{channel} channel is not available for "
+                        f"{person.full_name}. {hint}",
+                    },
+                    status=400,
+                )
             ev = OutreachEvent.objects.create(
                 person=person,
                 channel=channel,

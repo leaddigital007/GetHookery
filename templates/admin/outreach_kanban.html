@@ -72,7 +72,9 @@
   .kcard .ch-pill.sent { background:#15803d; color:#fff; border-color:#15803d; }
   .kcard .ch-pill.sent:hover { background:#dcfce7; color:#166534;
     border-color:#15803d; }
-  .kcard .ch-pill.disabled { opacity:.4; cursor:not-allowed; }
+  .kcard .ch-pill.disabled { opacity:.35; cursor:not-allowed;
+    background:repeating-linear-gradient(45deg, #f9fafb, #f9fafb 4px,
+    #f3f4f6 4px, #f3f4f6 8px); pointer-events:auto; }
   .kcard .ch-pill.disabled:hover { border-color:#d1d5db; color:#6b7280; }
   .kcard .hook { color:#374151; font-size:11px; margin-top:4px;
     font-style:italic; max-height:38px; overflow:hidden;
@@ -175,7 +177,9 @@
   .ch-pill-lg.sent small { color:rgba(255,255,255,.8); }
   .ch-pill-lg.sent:hover { background:#dcfce7; color:#166534; border-color:#15803d; }
   .ch-pill-lg.sent:hover small { color:#15803d; }
-  .ch-pill-lg.disabled { opacity:.4; cursor:not-allowed; }
+  .ch-pill-lg.disabled { opacity:.35; cursor:not-allowed;
+    background:repeating-linear-gradient(45deg, #f9fafb, #f9fafb 5px,
+    #f3f4f6 5px, #f3f4f6 10px); }
   .ch-pill-lg.disabled:hover { border-color:#d1d5db; color:#374151; }
 
   .ktimeline { list-style:none; padding:0; margin:0; }
@@ -399,7 +403,13 @@
   /* ---------------- Channel pills (toggle outreach event) ---------------- */
   function togglePill(pill, personId, channel) {
     if (pill.classList.contains('disabled')) {
-      flash('No ' + channel + ' contact on file. Edit person first.', false);
+      const hints = {
+        form: 'No submission URL on the fund. Edit fund admin first.',
+        email: 'No email on Person or Fund. Add one in Person admin.',
+        li_dm: 'No LinkedIn URL on Person. Add one in Person admin.',
+        x_dm: 'No Twitter handle on Person. Add one in Person admin.',
+      };
+      flash(hints[channel] || ('No ' + channel + ' contact on file.'), false);
       return;
     }
     pill.style.opacity = '0.5';
