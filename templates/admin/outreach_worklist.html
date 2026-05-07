@@ -172,9 +172,11 @@
   </label>
   <button type="submit" class="btn-secondary">Apply</button>
   <a class="btn-secondary" href="{% url 'admin:index' %}">← Admin home</a>
+  <a class="btn-secondary" href="{% url 'outreach-kanban' %}" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">▶ Kanban view</a>
+  <a class="btn-secondary" href="{% url 'outreach-sent-log' %}">→ Sent log</a>
   <a class="btn-secondary" href="{% url 'outreach-dashboard' %}">→ Dashboard</a>
   <a class="btn-secondary" href="{{ person_admin_base }}">→ Persons admin</a>
-  <a class="btn-secondary" href="{{ person_add_url }}" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">+ Add new contact</a>
+  <a class="btn-secondary" href="{{ person_add_url }}" style="background:#fff;color:#1d4ed8;border-color:#1d4ed8;">+ Add contact</a>
 </form>
 
 <div class="counter-row">

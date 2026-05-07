@@ -1,0 +1,298 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Outreach Kanban | Kubricon CRM{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">Kubricon Investor CRM</a>
+  <small style="font-weight: normal; color: #666;"> · Kanban</small>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+  body.kanban-mode { overflow-x: auto; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+    margin:12px 0 8px; padding:8px 12px; background:#fafafa;
+    border:1px solid #e5e7eb; border-radius:6px; position:sticky; top:0;
+    z-index:10; }
+  .toolbar select, .toolbar input[type=text] { padding:4px 8px; }
+  .toolbar a, .toolbar button { padding:4px 12px; background:#fff;
+    border:1px solid #d1d5db; border-radius:6px; color:#374151;
+    text-decoration:none; font-size:13px; cursor:pointer; }
+  .toolbar .ghost { color:#9ca3af; font-size:12px; }
+
+  .board-row { display:flex; gap:10px; align-items:stretch;
+    min-width:max-content; margin-bottom:24px; padding-bottom:8px; }
+  .col { flex:0 0 280px; background:#f3f4f6; border:1px solid #e5e7eb;
+    border-radius:8px; display:flex; flex-direction:column;
+    max-height:calc(100vh - 200px); }
+  .col-head { padding:8px 10px; border-bottom:2px solid; border-radius:8px 8px 0 0;
+    background:#fff; }
+  .col-head h3 { margin:0; font-size:13px; display:flex;
+    justify-content:space-between; align-items:center; gap:6px; }
+  .col-head h3 .count { background:#eef2ff; color:#3730a3;
+    border:1px solid #c7d2fe; padding:1px 7px; border-radius:10px;
+    font-size:11px; font-weight:600; }
+  .col-head .blurb { font-size:11px; color:#6b7280; margin-top:2px; line-height:1.3; }
+  .col-body { flex:1; overflow-y:auto; padding:6px; min-height:60px; }
+
+  .kcard { background:#fff; border:1px solid #e5e7eb; border-radius:6px;
+    padding:8px 10px; margin-bottom:6px; cursor:grab; font-size:12px;
+    line-height:1.4; box-shadow:0 1px 2px rgba(0,0,0,.04);
+    transition:box-shadow .12s, transform .12s; }
+  .kcard:hover { box-shadow:0 2px 8px rgba(0,0,0,.08); }
+  .kcard:active { cursor:grabbing; }
+  .kcard.dragging { opacity:0.6; }
+  .kcard.flash-ok { background:#dcfce7; transition:background .8s; }
+  .kcard.flash-err { background:#fee2e2; transition:background .8s; }
+
+  .kcard .name { font-weight:600; font-size:13px; color:#111827; }
+  .kcard .role { color:#6b7280; font-size:11px; }
+  .kcard .fund { color:#1d4ed8; font-size:11px; text-decoration:none; }
+  .kcard .fund:hover { text-decoration:underline; }
+  .kcard .badges { margin-top:4px; display:flex; flex-wrap:wrap; gap:3px; }
+  .kcard .badge { font-size:10px; padding:1px 5px; border-radius:8px;
+    background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+  .kcard .badge.tier-S { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+  .kcard .badge.tier-1 { background:#fce7f3; color:#9d174d; border-color:#fbcfe8; }
+  .kcard .badge.high { background:#dcfce7; color:#166534; border-color:#bbf7d0; }
+  .kcard .badge.warn { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+  .kcard .channel-row { margin-top:5px; display:flex; gap:4px; flex-wrap:wrap; }
+  .kcard .ch-dot { font-size:10px; padding:0 4px; border-radius:8px;
+    background:#1f2937; color:#fff; text-decoration:none; }
+  .kcard .ch-dot.alt { background:#6b7280; }
+  .kcard .hook { color:#374151; font-size:11px; margin-top:4px;
+    font-style:italic; max-height:38px; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .kcard .meta { color:#6b7280; font-size:10px; margin-top:4px; }
+  .kcard.overdue { border-left:3px solid #dc2626; }
+  .kcard.replied { border-left:3px solid #15803d; }
+
+  .fund-card { background:#fff; border:1px dashed #d1d5db; border-radius:6px;
+    padding:8px 10px; margin-bottom:6px; font-size:12px; line-height:1.4; }
+  .fund-card .fund-name { font-weight:600; color:#1d4ed8; font-size:13px; }
+  .fund-card a.btn { display:inline-block; padding:3px 8px;
+    border-radius:4px; background:#1d4ed8; color:#fff; text-decoration:none;
+    font-size:11px; margin-top:4px; }
+  .fund-card form { display:inline; margin:0; }
+  .fund-card button { padding:3px 8px; border-radius:4px;
+    background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb;
+    font-size:11px; cursor:pointer; margin-top:4px; }
+
+  .ghost-drop { background:#dbeafe !important; border:2px dashed #1d4ed8 !important;
+    height:32px; }
+
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    padding:8px 16px; border-radius:6px; font-size:13px; z-index:100;
+    box-shadow:0 4px 14px rgba(0,0,0,.18); display:none; }
+  #toast.ok { background:#15803d; color:#fff; }
+  #toast.err { background:#b91c1c; color:#fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<script>document.body.classList.add('kanban-mode');</script>
+
+<form method="get" class="toolbar">
+  <strong>Outreach Kanban</strong>
+  <label>Owner:
+    <select name="owner" onchange="this.form.submit()">
+      {% for v, l in owner_options %}
+        <option value="{{ v }}" {% if owner == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Tiers:
+    <select name="tiers" onchange="this.form.submit()">
+      {% for v, l in tier_options %}
+        <option value="{{ v }}" {% if tiers_filter == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Search:
+    <input type="text" name="q" value="{{ search_q }}" placeholder="fund or partner">
+  </label>
+  <button type="submit">Apply</button>
+  <a href="{% url 'admin:index' %}">← Admin</a>
+  <a href="{% url 'outreach-worklist' %}">List view</a>
+  <a href="{% url 'outreach-sent-log' %}">Sent log</a>
+  <a href="{{ person_add_url }}" style="background:#1d4ed8;color:#fff;border-color:#1d4ed8;">+ Add contact</a>
+  <span class="ghost">Drag cards between columns. Total: {{ counters.total }} persons{% if counters.research_funds %} + {{ counters.research_funds }} dark funds{% endif %}.</span>
+</form>
+
+<div class="board-row" id="board">
+  {% for col in columns %}
+    <div class="col">
+      <div class="col-head" style="border-bottom-color: {{ col.color }};">
+        <h3>
+          <span style="color:{{ col.color }};">{{ col.title }}</span>
+          <span class="count">{{ col.cards|length }}{% if col.key == "research" and col.fund_cards %} + {{ col.fund_cards|length }}f{% endif %}</span>
+        </h3>
+        <div class="blurb">{{ col.blurb }}</div>
+      </div>
+      <div class="col-body sortable" data-col="{{ col.key }}">
+        {% for c in col.cards %}
+          <div class="kcard {% if c.column == 'followup' %}overdue{% endif %}{% if c.column == 'replied' or c.column == 'meeting' %} replied{% endif %}"
+               data-person-id="{{ c.person.id }}"
+               data-suggested-channel="{{ c.suggested_channel }}"
+               title="{{ c.person.full_name }} — {{ c.fund.name|default:'(no fund)' }}">
+            <div class="name">{{ c.person.full_name }}</div>
+            {% if c.person.role %}<div class="role">{{ c.person.role }}</div>{% endif %}
+            {% if c.fund %}
+              <a class="fund" href="/admin/investors/fund/{{ c.fund.id }}/change/" target="_blank">{{ c.fund.name }}</a>
+            {% endif %}
+            <div class="badges">
+              {% if c.fund %}<span class="badge tier-{{ c.fund.tier }}">T{{ c.fund.tier }}</span>{% endif %}
+              {% if c.fund_score %}<span class="badge">{{ c.fund_score }}</span>{% endif %}
+              {% if c.confidence == "high" %}<span class="badge high">high</span>{% endif %}
+              {% if c.person.assigned_to %}<span class="badge">{{ c.person.get_assigned_to_display }}</span>{% endif %}
+              {% if not c.has_channel %}<span class="badge warn">no channel</span>{% endif %}
+              {% if not c.has_draft %}<span class="badge warn">no draft</span>{% endif %}
+            </div>
+            <div class="channel-row">
+              {% if c.submission_url %}<a class="ch-dot" href="{{ c.submission_url }}" target="_blank">form</a>{% endif %}
+              {% if c.contact_email %}<a class="ch-dot" href="mailto:{{ c.contact_email }}" target="_blank">email</a>{% endif %}
+              {% if c.linkedin_url %}<a class="ch-dot alt" href="{{ c.linkedin_url }}" target="_blank">LI</a>{% endif %}
+              {% if c.twitter_url %}<a class="ch-dot alt" href="{{ c.twitter_url }}" target="_blank">X</a>{% endif %}
+              {% if c.person.email %}<a class="ch-dot alt" href="mailto:{{ c.person.email }}" target="_blank">@</a>{% endif %}
+              <a class="ch-dot alt" href="/admin/investors/person/{{ c.person.id }}/change/" target="_blank">edit</a>
+            </div>
+            {% if c.hook %}<div class="hook">{{ c.hook }}</div>{% endif %}
+            <div class="meta">
+              {% if c.days_since_sent is not None %}sent {{ c.days_since_sent }}d ago{% endif %}
+              {% if c.overdue_days %} · overdue {{ c.overdue_days }}d{% endif %}
+              {% if c.person.outreach_channel %} · via {{ c.person.get_outreach_channel_display }}{% endif %}
+            </div>
+          </div>
+        {% endfor %}
+        {% if col.key == "research" and col.fund_cards %}
+          {% for f in col.fund_cards %}
+            <div class="fund-card" data-fund-id="{{ f.fund.id }}">
+              <div class="fund-name">{{ f.fund.name }}</div>
+              <div style="color:#6b7280;font-size:11px;">
+                T{{ f.fund.tier }}{% if f.score %} · score {{ f.score }}{% endif %}
+                {% if f.fund.check_max_usd %} · ≤${{ f.fund.check_max_usd }}{% endif %}
+              </div>
+              <div style="color:#374151;font-size:11px;margin-top:3px;">{{ f.reason }}</div>
+              <a class="btn" href="{{ person_add_url }}?fund={{ f.fund.id }}" target="_blank">+ Add contact</a>
+              <a class="btn" style="background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;" href="/admin/investors/fund/{{ f.fund.id }}/change/" target="_blank">Open fund</a>
+              <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="skip_fund">
+                <input type="hidden" name="fund_id" value="{{ f.fund.id }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" title="Hide this fund from the board permanently">skip</button>
+              </form>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function() {
+  const MOVE_URL = "{{ move_url|escapejs }}";
+  const CSRF = (function() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  })();
+
+  const toast = document.getElementById('toast');
+  function flash(msg, ok=true) {
+    toast.textContent = msg;
+    toast.className = ok ? 'ok' : 'err';
+    toast.style.display = 'block';
+    clearTimeout(flash._t);
+    flash._t = setTimeout(() => { toast.style.display = 'none'; }, 2400);
+  }
+
+  function move(personId, target, channel, cardEl, fromCol) {
+    return fetch(MOVE_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF,
+      },
+      body: JSON.stringify({ person_id: personId, target: target, channel: channel || "" })
+    })
+    .then(r => r.json().then(j => ({ status: r.status, body: j })))
+    .then(({ status, body }) => {
+      if (!body.ok) {
+        throw new Error(body.error || 'Move rejected');
+      }
+      cardEl.classList.add('flash-ok');
+      setTimeout(() => cardEl.classList.remove('flash-ok'), 800);
+      // Update count badges
+      updateCounts();
+      flash('Moved to "' + target + '"');
+      return body;
+    })
+    .catch(err => {
+      cardEl.classList.add('flash-err');
+      setTimeout(() => cardEl.classList.remove('flash-err'), 800);
+      flash('Failed: ' + err.message, false);
+      // Roll back: move card back to source column
+      const srcCol = document.querySelector('.sortable[data-col="' + fromCol + '"]');
+      if (srcCol && cardEl.parentNode !== srcCol) {
+        srcCol.appendChild(cardEl);
+      }
+      throw err;
+    });
+  }
+
+  function updateCounts() {
+    document.querySelectorAll('.col').forEach(col => {
+      const body = col.querySelector('.col-body');
+      const count = body.querySelectorAll('.kcard').length;
+      const fundCount = body.querySelectorAll('.fund-card').length;
+      const badge = col.querySelector('.col-head .count');
+      if (badge) {
+        badge.textContent = count + (fundCount ? ' + ' + fundCount + 'f' : '');
+      }
+    });
+  }
+
+  document.querySelectorAll('.sortable').forEach(el => {
+    new Sortable(el, {
+      group: 'kanban',
+      animation: 140,
+      ghostClass: 'ghost-drop',
+      dragClass: 'dragging',
+      filter: '.fund-card',
+      preventOnFilter: false,
+      onEnd: function(evt) {
+        const card = evt.item;
+        if (!card.dataset.personId) return;
+        const fromCol = evt.from.dataset.col;
+        const toCol = evt.to.dataset.col;
+        if (fromCol === toCol) return;
+        const personId = card.dataset.personId;
+        let channel = "";
+        if (toCol === "sent") {
+          const suggested = card.dataset.suggestedChannel || "";
+          channel = prompt(
+            "Confirm channel used for outreach (form / email / li_dm / x_dm / intro / other):",
+            suggested || "email"
+          );
+          if (channel === null) {
+            // Cancel: rollback
+            evt.from.appendChild(card);
+            return;
+          }
+        }
+        move(personId, toCol, channel, card, fromCol);
+      },
+    });
+  });
+})();
+</script>
+
+{% endblock %}

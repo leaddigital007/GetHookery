@@ -5,15 +5,20 @@
   <h1>{% trans 'Site administration' %}</h1>
 
   <div style="margin:-8px 0 18px 0;display:flex;flex-wrap:wrap;gap:8px;">
-    <a href="{% url 'outreach-worklist' %}"
+    <a href="{% url 'outreach-kanban' %}"
        style="padding:6px 14px;background:#1d4ed8;color:#fff;border-radius:4px;
               text-decoration:none;font-weight:500;font-size:13px;">
-      ▶ Daily Worklist
+      ▶ Outreach Kanban (drag-and-drop)
+    </a>
+    <a href="{% url 'outreach-worklist' %}"
+       style="padding:6px 14px;background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;
+              border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
+      List view (drafts + copy buttons)
     </a>
     <a href="{% url 'outreach-sent-log' %}"
        style="padding:6px 14px;background:#15803d;color:#fff;border-radius:4px;
               text-decoration:none;font-weight:500;font-size:13px;">
-      ✓ Sent log (who I already wrote to)
+      ✓ Sent log
     </a>
     <a href="{% url 'outreach-dashboard' %}"
        style="padding:6px 14px;background:#447e9b;color:#fff;border-radius:4px;
@@ -23,12 +28,12 @@
     <a href="/admin/investors/person/add/"
        style="padding:6px 14px;background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;
               border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
-      + Add new contact
+      + Add contact
     </a>
     <a href="/admin/investors/fund/add/"
        style="padding:6px 14px;background:#fff;color:#1d4ed8;border:1px solid #1d4ed8;
               border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;">
-      + Add new fund
+      + Add fund
     </a>
   </div>
 
@@ -38,26 +43,27 @@
       How to use this admin (3-minute read — open this every morning)
     </summary>
     <div style="font-size:13px;line-height:1.55;color:#1f2937;margin-top:10px;">
-      <p><strong>Daily routine (do this in order):</strong></p>
+      <p><strong>Daily routine (Kanban — do this in order):</strong></p>
       <ol>
-        <li><strong>Open Daily Worklist.</strong> Top bucket "Today: primary contacts" is the queue
-            you process first. Each card has a copy-able draft, the channel button (X / LinkedIn /
-            email / submission form), and a "Mark sent" button.</li>
-        <li><strong>For each row:</strong> read the hook, copy the right draft (X DM / LI DM /
-            Email — depending on what is suggested), open the channel link, paste, send.
-            Then come back and click <em>Mark sent</em> with the channel you actually used.
-            That timestamps the action and auto-schedules a +7-day follow-up.</li>
-        <li><strong>"Funds without partner contacts" bucket</strong> = funds we like but where we
-            do not have a single Person yet. Click <em>Open fund</em> or <em>+ Add contact</em>
-            to add a partner manually (1-2 names from their /team page is enough).</li>
-        <li><strong>"Funds with persons but no channel" bucket</strong> = we know the partner
-            name but no Twitter / LinkedIn / email. Click the partner, paste their LI URL or
-            X handle into the Person edit form, save. They auto-promote into "Today" buckets.</li>
-        <li><strong>Follow-ups overdue bucket</strong> appears after 7 days. Click "Followed up"
-            on the row after you actually send a nudge.</li>
-        <li><strong>Replied bucket:</strong> when someone answers, click <em>Mark replied</em>.
-            Then move them through pipeline stages from the Person admin
-            (Contacted → Replied → Meeting → DD → Term sheet → Closed).</li>
+        <li><strong>Open Outreach Kanban.</strong> 7 columns: Research → Ready to send →
+            Sent → Follow-up due → Replied → Meeting/DD → Closed. Drag cards left ↔ right
+            to change status.</li>
+        <li><strong>Take cards from "Ready to send"</strong>: click the channel pill
+            (form / email / LI / X) on the card to open the destination. Get the draft
+            text via the <em>List view</em> tab (one click away — full copy-able drafts there).
+            Send it. Drag the card into "Sent" — a prompt asks which channel you actually
+            used. Card moves, +7-day follow-up scheduled.</li>
+        <li><strong>"Research" column</strong> contains: persons without a channel
+            (need email/LI/X added), persons without a draft, AND dashed dark-fund cards
+            for funds with no partners on file. Click "+ Add contact" on a fund card or
+            edit a person to fill in their channel. Card auto-promotes to "Ready".</li>
+        <li><strong>"Follow-up due"</strong> appears after 7 days. Send the nudge, then drag
+            either back to "Sent" (resets +7d) or forward to "Replied" if they answered.</li>
+        <li><strong>"Replied" → "Meeting/DD"</strong> when a call is booked. <strong>"Meeting/DD"
+            → "Closed"</strong> when the deal is won, lost, or they pass.</li>
+        <li>The <strong>List view</strong> (worklist) is for getting the actual draft text:
+            same data, vertical layout, with full copy-able drafts and explicit Mark sent buttons.
+            Use it when you want to see the long email body before sending.</li>
       </ol>
 
       <p style="margin-top:10px;"><strong>Where everything lives (cheat-sheet):</strong></p>

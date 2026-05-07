@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from apps.investors.admin_dashboard import outreach_dashboard
+from apps.investors.admin_kanban import outreach_kanban, outreach_kanban_move
 from apps.investors.admin_sent_log import outreach_sent_log
 from apps.investors.admin_worklist import outreach_worklist
 
@@ -10,6 +11,16 @@ urlpatterns = [
         "admin/outreach/dashboard/",
         outreach_dashboard,
         name="outreach-dashboard",
+    ),
+    path(
+        "admin/outreach/board/",
+        outreach_kanban,
+        name="outreach-kanban",
+    ),
+    path(
+        "admin/outreach/board/move/",
+        outreach_kanban_move,
+        name="outreach-kanban-move",
     ),
     path(
         "admin/outreach/worklist/",

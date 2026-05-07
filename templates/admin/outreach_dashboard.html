@@ -138,11 +138,17 @@
 {% block content %}
 <h1 style="margin-top: 4px;">Pre-seed / Seed pipeline overview</h1>
 <p style="margin-top:-6px;margin-bottom:14px;">
-  <a href="{% url 'outreach-worklist' %}"
+  <a href="{% url 'outreach-kanban' %}"
      style="display:inline-block;padding:6px 14px;background:#1d4ed8;color:#fff;
             border-radius:4px;text-decoration:none;font-weight:500;font-size:13px;
             margin-right:6px;">
-    ▶ Open Daily Worklist
+    ▶ Outreach Kanban
+  </a>
+  <a href="{% url 'outreach-worklist' %}"
+     style="display:inline-block;padding:6px 14px;background:#fff;color:#1d4ed8;
+            border:1px solid #1d4ed8;border-radius:4px;text-decoration:none;
+            font-weight:500;font-size:13px;margin-right:6px;">
+    List view (drafts)
   </a>
   <a href="{% url 'outreach-sent-log' %}"
      style="display:inline-block;padding:6px 14px;background:#15803d;color:#fff;
@@ -150,7 +156,7 @@
     ✓ Sent log
   </a>
   <span style="color:#888;font-size:12px;margin-left:10px;">
-    Worklist = today's queue. Sent log = chronology of everyone you have written to.
+    Kanban = drag-and-drop pipeline. List = vertical view with full drafts. Sent log = chronology.
   </span>
 </p>
 
