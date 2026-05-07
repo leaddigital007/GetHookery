@@ -101,6 +101,25 @@
       </div>
     </div>
 
+    <h3 style="margin-top:18px;">Channels sent</h3>
+    <div class="kmodal-section">
+      <div class="kmodal-pills" data-pills-for="{{ person.id }}">
+        {% for s in channel_states %}
+          <span class="ch-pill-lg {% if s.sent %}sent{% endif %} {% if not s.available %}disabled{% endif %}"
+                data-channel="{{ s.key }}"
+                title="{% if s.sent %}{{ s.label }} sent{% if s.sent_at %} {{ s.sent_at|date:'M j' }}{% endif %} - click to undo{% else %}{% if s.available %}Mark {{ s.label }} as sent{% else %}{{ s.label }} not available — add it on Person admin first{% endif %}{% endif %}">
+            {% if s.sent %}✓{% else %}+{% endif %} {{ s.label }}
+            {% if s.sent and s.sent_at %}<small>{{ s.sent_at|date:"M j" }}</small>{% endif %}
+          </span>
+        {% endfor %}
+      </div>
+      <div class="kmeta" style="margin-top:6px;">
+        Click a chip to mark / unmark a channel as sent. Each chip is an
+        independent send event; you can do all 4 channels and they will each
+        be tracked separately.
+      </div>
+    </div>
+
     <h3 style="margin-top:18px;">Status</h3>
     <div class="kmodal-section">
       <div class="kmeta">
@@ -108,7 +127,7 @@
       </div>
       {% if person.outreach_sent_at %}
         <div class="kmeta">
-          Sent: {{ person.outreach_sent_at|date:"M j, Y H:i" }} ({{ days_since_sent }}d ago)
+          First sent: {{ person.outreach_sent_at|date:"M j, Y H:i" }} ({{ days_since_sent }}d ago)
         </div>
       {% else %}
         <div class="kmeta">Not sent yet.</div>
@@ -125,6 +144,25 @@
         </div>
       {% endif %}
     </div>
+
+    {% if timeline %}
+      <h3 style="margin-top:18px;">Timeline</h3>
+      <div class="kmodal-section">
+        <ol class="ktimeline">
+          {% for ev in timeline %}
+            <li class="{% if ev.direction == 'in' %}reply{% endif %}">
+              <span class="ktimeline-when">{{ ev.sent_at|date:"M j, H:i" }}</span>
+              <span class="ktimeline-what">
+                {% if ev.direction == 'in' %}↩ Reply{% else %}→ Sent{% endif %}
+                via <strong>{{ ev.get_channel_display }}</strong>
+                {% if ev.actor %} · by {{ ev.actor.username }}{% endif %}
+                {% if ev.notes %}<br><small>{{ ev.notes }}</small>{% endif %}
+              </span>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    {% endif %}
   </div>
 
   <div class="kmodal-col-right">

@@ -6,3 +6,6 @@ class InvestorsConfig(AppConfig):
     name = "apps.investors"
     label = "investors"
     verbose_name = "Investors CRM"
+
+    def ready(self):  # noqa: D401
+        from . import signals  # noqa: F401

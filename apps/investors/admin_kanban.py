@@ -66,10 +66,21 @@ from .models import (
     Fund,
     FundTier,
     OutreachChannel,
+    OutreachDirection,
+    OutreachEvent,
     OutreachOwner,
     Person,
     PipelineStage,
 )
+
+
+CHANNEL_KEYS_DISPLAY = [
+    ("form", "Form"),
+    ("email", "Email"),
+    ("li_dm", "LinkedIn"),
+    ("x_dm", "X / Twitter"),
+    ("intro", "Warm intro"),
+]
 
 
 COLUMN_DEFS = [
@@ -146,6 +157,8 @@ class KCard:
     linkedin_url: str
     days_since_sent: int | None
     overdue_days: int | None
+    channel_states: list = field(default_factory=list)
+    sent_count: int = 0
 
 
 @dataclass
@@ -165,6 +178,55 @@ class KColumn:
     color: str
     cards: list = field(default_factory=list)
     fund_cards: list = field(default_factory=list)
+
+
+def _channel_available(person: Person, fund: Fund | None, channel: str) -> bool:
+    """Whether the user has the contact details to use this channel."""
+    if channel == "form":
+        return bool(fund and fund.submission_url)
+    if channel == "email":
+        return bool((fund and fund.contact_email) or person.email)
+    if channel == "li_dm":
+        return bool(person.linkedin_url)
+    if channel == "x_dm":
+        return bool(person.twitter_handle)
+    if channel == "intro":
+        return True  # always offered (warm intro is people-driven)
+    return False
+
+
+def _person_channel_states(
+    person: Person, fund: Fund | None, events_by_channel: dict[str, object] | None = None
+) -> list[dict]:
+    """Compact list for the card pills."""
+    if events_by_channel is None:
+        events_by_channel = {}
+    states: list[dict] = []
+    for key, label in CHANNEL_KEYS_DISPLAY:
+        event = events_by_channel.get(key)
+        states.append(
+            {
+                "key": key,
+                "label": label,
+                "available": _channel_available(person, fund, key),
+                "sent": bool(event),
+                "sent_at": getattr(event, "sent_at", None),
+            }
+        )
+    return states
+
+
+def _events_by_channel_for_person(
+    person: Person,
+) -> dict[str, OutreachEvent]:
+    """Latest OUTBOUND event per channel for a person."""
+    result: dict[str, OutreachEvent] = {}
+    qs = OutreachEvent.objects.filter(
+        person=person, direction=OutreachDirection.OUTBOUND
+    ).order_by("-sent_at")
+    for ev in qs:
+        result.setdefault(ev.channel, ev)
+    return result
 
 
 def _classify(person: Person, now) -> str:
@@ -195,7 +257,11 @@ def _classify(person: Person, now) -> str:
     return "research"
 
 
-def _build_kcard(person: Person, now) -> KCard:
+def _build_kcard(
+    person: Person,
+    now,
+    events_by_channel: dict[str, OutreachEvent] | None = None,
+) -> KCard:
     fund = person.fund
     draft = _parse_draft(person.outreach_text or "")
     column = _classify(person, now)
@@ -217,6 +283,8 @@ def _build_kcard(person: Person, now) -> KCard:
             and not person.replied_at
         ):
             overdue_days = (now - person.next_followup_at).days
+    states = _person_channel_states(person, fund, events_by_channel or {})
+    sent_count = sum(1 for s in states if s["sent"])
     return KCard(
         person=person,
         fund=fund,
@@ -233,6 +301,8 @@ def _build_kcard(person: Person, now) -> KCard:
         linkedin_url=person.linkedin_url,
         days_since_sent=days_sent,
         overdue_days=overdue_days,
+        channel_states=states,
+        sent_count=sent_count,
     )
 
 
@@ -282,8 +352,20 @@ def outreach_kanban(request):
     now = timezone.now()
     columns = {c["key"]: KColumn(**c) for c in COLUMN_DEFS}
 
+    # Bulk-load latest outbound event per (person, channel) to avoid N+1.
+    person_ids = list(base_qs.values_list("id", flat=True))
+    events_map: dict[int, dict[str, OutreachEvent]] = {}
+    if person_ids:
+        events_qs = OutreachEvent.objects.filter(
+            person_id__in=person_ids,
+            direction=OutreachDirection.OUTBOUND,
+        ).order_by("-sent_at")
+        for ev in events_qs:
+            per_person = events_map.setdefault(ev.person_id, {})
+            per_person.setdefault(ev.channel, ev)
+
     for p in base_qs.iterator():
-        card = _build_kcard(p, now)
+        card = _build_kcard(p, now, events_map.get(p.id, {}))
         if card.column in columns:
             columns[card.column].cards.append(card)
 
@@ -345,99 +427,121 @@ def outreach_kanban(request):
         "person_admin_base": reverse("admin:investors_person_changelist"),
         "person_add_url": reverse("admin:investors_person_add"),
         "move_url": reverse("outreach-kanban-move"),
+        "touch_url": reverse("outreach-kanban-touch"),
     }
     return render(request, "admin/outreach_kanban.html", context)
 
 
-def _apply_transition(person: Person, target: str, channel: str = "") -> dict:
-    """Mutate Person fields to land it in `target` column. Idempotent."""
+def _apply_transition(
+    person: Person,
+    target: str,
+    channel: str = "",
+    actor=None,
+) -> dict:
+    """Mutate Person fields + OutreachEvent rows to land in `target` column."""
     now = timezone.now()
     out: dict = {"ok": True, "person_id": person.id}
     fields_to_update: set[str] = set()
 
     if target == "research":
-        person.outreach_sent_at = None
-        person.replied_at = None
+        OutreachEvent.objects.filter(person=person).delete()
         person.next_followup_at = None
         person.pipeline_stage = PipelineStage.IDENTIFIED
         person.pipeline_changed_at = now
         fields_to_update.update(
-            [
-                "outreach_sent_at",
-                "replied_at",
-                "next_followup_at",
-                "pipeline_stage",
-                "pipeline_changed_at",
-            ]
+            ["next_followup_at", "pipeline_stage", "pipeline_changed_at"]
         )
     elif target == "ready":
-        person.outreach_sent_at = None
-        person.replied_at = None
+        OutreachEvent.objects.filter(person=person).delete()
         person.next_followup_at = None
         person.pipeline_stage = PipelineStage.RESEARCHED
         person.pipeline_changed_at = now
         fields_to_update.update(
-            [
-                "outreach_sent_at",
-                "replied_at",
-                "next_followup_at",
-                "pipeline_stage",
-                "pipeline_changed_at",
-            ]
+            ["next_followup_at", "pipeline_stage", "pipeline_changed_at"]
         )
     elif target == "sent":
-        if person.outreach_sent_at is None:
-            person.outreach_sent_at = now
-            person.next_followup_at = now + timedelta(days=7)
-            fields_to_update.update(["outreach_sent_at", "next_followup_at"])
-            if channel:
-                person.outreach_channel = channel
-                fields_to_update.add("outreach_channel")
-            elif not person.outreach_channel:
-                suggested = _suggested_channel(person, person.fund)
-                person.outreach_channel = suggested or OutreachChannel.OTHER
-                fields_to_update.add("outreach_channel")
-        elif person.next_followup_at is None or person.next_followup_at < now:
+        # Keep existing reply events; ensure at least one outbound exists.
+        outbound_exists = OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.OUTBOUND
+        ).exists()
+        if not outbound_exists:
+            ch = channel or _suggested_channel(person, person.fund) or OutreachChannel.OTHER
+            OutreachEvent.objects.create(
+                person=person,
+                channel=ch,
+                direction=OutreachDirection.OUTBOUND,
+                sent_at=now,
+                actor=actor,
+            )
+        if person.next_followup_at is None or person.next_followup_at < now:
             person.next_followup_at = now + timedelta(days=7)
             fields_to_update.add("next_followup_at")
-        person.replied_at = None
+        # Drop any reply marker (drag back from Replied)
+        OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.REPLY
+        ).delete()
         person.pipeline_stage = PipelineStage.CONTACTED
         person.pipeline_changed_at = now
-        fields_to_update.update(
-            ["replied_at", "pipeline_stage", "pipeline_changed_at"]
-        )
+        fields_to_update.update(["pipeline_stage", "pipeline_changed_at"])
     elif target == "followup":
-        if person.outreach_sent_at is None:
+        if not OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.OUTBOUND
+        ).exists():
             return {
                 "ok": False,
-                "error": "Cannot move to follow-up before marking sent.",
+                "error": "Cannot move to follow-up before any outreach was sent.",
             }
         person.next_followup_at = now - timedelta(days=1)
-        person.replied_at = None
         person.pipeline_stage = PipelineStage.CONTACTED
         person.pipeline_changed_at = now
+        # Clear any reply marker
+        OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.REPLY
+        ).delete()
         fields_to_update.update(
-            [
-                "next_followup_at",
-                "replied_at",
-                "pipeline_stage",
-                "pipeline_changed_at",
-            ]
+            ["next_followup_at", "pipeline_stage", "pipeline_changed_at"]
         )
     elif target == "replied":
-        if person.outreach_sent_at is None:
-            person.outreach_sent_at = now
-            fields_to_update.add("outreach_sent_at")
-        person.replied_at = now
+        # Make sure there's at least one outbound event (otherwise it's
+        # nonsensical to mark replied)
+        if not OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.OUTBOUND
+        ).exists():
+            ch = channel or _suggested_channel(person, person.fund) or OutreachChannel.OTHER
+            OutreachEvent.objects.create(
+                person=person,
+                channel=ch,
+                direction=OutreachDirection.OUTBOUND,
+                sent_at=now,
+                actor=actor,
+                notes="(auto-created when marked replied)",
+            )
+        # Mark a reply event
+        if not OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.REPLY
+        ).exists():
+            OutreachEvent.objects.create(
+                person=person,
+                channel=channel or person.outreach_channel or OutreachChannel.OTHER,
+                direction=OutreachDirection.REPLY,
+                sent_at=now,
+                actor=actor,
+            )
         person.pipeline_stage = PipelineStage.REPLIED
         person.pipeline_changed_at = now
-        fields_to_update.update(
-            ["replied_at", "pipeline_stage", "pipeline_changed_at"]
-        )
+        fields_to_update.update(["pipeline_stage", "pipeline_changed_at"])
     elif target == "meeting":
-        if not person.replied_at:
-            person.replied_at = now
-            fields_to_update.add("replied_at")
+        if not OutreachEvent.objects.filter(
+            person=person, direction=OutreachDirection.REPLY
+        ).exists():
+            OutreachEvent.objects.create(
+                person=person,
+                channel=person.outreach_channel or OutreachChannel.OTHER,
+                direction=OutreachDirection.REPLY,
+                sent_at=now,
+                actor=actor,
+                notes="(auto-created when moved to meeting)",
+            )
         person.pipeline_stage = PipelineStage.MEETING
         person.pipeline_changed_at = now
         fields_to_update.update(["pipeline_stage", "pipeline_changed_at"])
@@ -448,8 +552,10 @@ def _apply_transition(person: Person, target: str, channel: str = "") -> dict:
     else:
         return {"ok": False, "error": f"Unknown target column: {target}"}
 
-    fields_to_update.add("updated_at")
-    person.save(update_fields=list(fields_to_update))
+    if fields_to_update:
+        fields_to_update.add("updated_at")
+        person.save(update_fields=list(fields_to_update))
+    person.refresh_from_db()
     out["new_column"] = target
     out["pipeline_stage"] = person.pipeline_stage
     out["pipeline_stage_display"] = person.get_pipeline_stage_display()
@@ -486,6 +592,12 @@ def outreach_kanban_card(request, person_id: int):
         ):
             overdue_days = (now - person.next_followup_at).days
 
+    events_by_channel = _events_by_channel_for_person(person)
+    channel_states = _person_channel_states(person, fund, events_by_channel)
+    timeline = list(
+        OutreachEvent.objects.filter(person=person).order_by("-sent_at")[:30]
+    )
+
     # Pre-resolve admin URLs to avoid template lookups inside fragment
     person_admin_url = reverse(
         "admin:investors_person_change", args=[person.id]
@@ -510,9 +622,112 @@ def outreach_kanban_card(request, person_id: int):
         "person_admin_url": person_admin_url,
         "fund_admin_url": fund_admin_url,
         "move_url": reverse("outreach-kanban-move"),
+        "touch_url": reverse("outreach-kanban-touch"),
+        "channel_states": channel_states,
+        "timeline": timeline,
     }
     html = render_to_string("admin/outreach_kanban_card.html", ctx, request=request)
     return HttpResponse(html)
+
+
+@staff_member_required
+@require_POST
+def outreach_kanban_touch(request):
+    """Toggle an outbound OutreachEvent for (person, channel).
+
+    POST JSON: {"person_id": int, "channel": str}
+    Response: {"ok": True, "channel": str, "sent": bool, "sent_at": iso?,
+               "column": str, "all_states": [...]}
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        payload = {}
+
+    person_id = payload.get("person_id")
+    channel = (payload.get("channel") or "").strip()
+
+    if not person_id or not channel:
+        return JsonResponse(
+            {"ok": False, "error": "Missing person_id or channel."}, status=400
+        )
+    if channel not in dict(OutreachChannel.choices):
+        return JsonResponse(
+            {"ok": False, "error": f"Unknown channel: {channel}"}, status=400
+        )
+
+    try:
+        person = Person.objects.select_related("fund").get(pk=person_id)
+    except Person.DoesNotExist:
+        return JsonResponse(
+            {"ok": False, "error": "Person not found."}, status=404
+        )
+
+    now = timezone.now()
+    with transaction.atomic():
+        existing = OutreachEvent.objects.filter(
+            person=person,
+            channel=channel,
+            direction=OutreachDirection.OUTBOUND,
+        )
+        if existing.exists():
+            existing.delete()
+            sent = False
+            sent_at_iso = None
+        else:
+            ev = OutreachEvent.objects.create(
+                person=person,
+                channel=channel,
+                direction=OutreachDirection.OUTBOUND,
+                sent_at=now,
+                actor=request.user if request.user.is_authenticated else None,
+            )
+            # First touch: also set pipeline_stage to CONTACTED and schedule
+            # follow-up if not yet set.
+            update_fields: list[str] = []
+            if person.pipeline_stage in {
+                PipelineStage.IDENTIFIED,
+                PipelineStage.RESEARCHED,
+            }:
+                person.pipeline_stage = PipelineStage.CONTACTED
+                person.pipeline_changed_at = now
+                update_fields.extend(["pipeline_stage", "pipeline_changed_at"])
+            if person.next_followup_at is None:
+                person.next_followup_at = now + timedelta(days=7)
+                update_fields.append("next_followup_at")
+            if update_fields:
+                update_fields.append("updated_at")
+                person.save(update_fields=update_fields)
+            sent = True
+            sent_at_iso = ev.sent_at.isoformat()
+
+        person.refresh_from_db()
+        column = _classify(person, now)
+        events_by_channel = _events_by_channel_for_person(person)
+        states = _person_channel_states(person, person.fund, events_by_channel)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "channel": channel,
+            "sent": sent,
+            "sent_at": sent_at_iso,
+            "column": column,
+            "pipeline_stage": person.pipeline_stage,
+            "pipeline_stage_display": person.get_pipeline_stage_display(),
+            "all_states": [
+                {
+                    "key": s["key"],
+                    "label": s["label"],
+                    "available": s["available"],
+                    "sent": s["sent"],
+                    "sent_at": s["sent_at"].isoformat() if s["sent_at"] else None,
+                }
+                for s in states
+            ],
+            "sent_count": sum(1 for s in states if s["sent"]),
+        }
+    )
 
 
 @staff_member_required
@@ -540,8 +755,9 @@ def outreach_kanban_move(request):
             {"ok": False, "error": "Person not found."}, status=404
         )
 
+    actor = request.user if request.user.is_authenticated else None
     with transaction.atomic():
-        result = _apply_transition(person, target, channel=channel)
+        result = _apply_transition(person, target, channel=channel, actor=actor)
     if not result.get("ok"):
         return JsonResponse(result, status=400)
     return JsonResponse(result)

@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.utils import timezone
 
 
 class TimestampedModel(models.Model):
@@ -240,6 +241,59 @@ class Person(TimestampedModel):
         if self.fund:
             return f"{self.full_name} - {self.fund.name}"
         return f"{self.full_name} (angel)"
+
+
+class OutreachDirection(models.TextChoices):
+    OUTBOUND = "out", "Outbound"
+    REPLY = "in", "Reply received"
+
+
+class OutreachEvent(TimestampedModel):
+    """A single touch (one channel, one timestamp) on a Person.
+
+    A Person can have many events across channels (e.g. an X DM today + a
+    LinkedIn DM next week + an email follow-up). The denormalised
+    Person.outreach_sent_at / outreach_channel fields are kept in sync via
+    signals so the existing admin / dashboard / sent log keep working.
+    """
+
+    person = models.ForeignKey(
+        Person,
+        on_delete=models.CASCADE,
+        related_name="outreach_events",
+    )
+    channel = models.CharField(
+        max_length=10,
+        choices=OutreachChannel.choices,
+        help_text="Which channel was used.",
+    )
+    direction = models.CharField(
+        max_length=4,
+        choices=OutreachDirection.choices,
+        default=OutreachDirection.OUTBOUND,
+    )
+    sent_at = models.DateTimeField(default=timezone.now)
+    notes = models.TextField(blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="outreach_events_recorded",
+    )
+
+    class Meta:
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["person", "channel"]),
+            models.Index(fields=["-sent_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.person.full_name} - {self.get_channel_display()} "
+            f"@ {self.sent_at:%Y-%m-%d %H:%M}"
+        )
 
 
 class Company(TimestampedModel):

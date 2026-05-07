@@ -64,6 +64,16 @@
   .kcard .ch-dot { font-size:10px; padding:0 4px; border-radius:8px;
     background:#1f2937; color:#fff; text-decoration:none; }
   .kcard .ch-dot.alt { background:#6b7280; }
+  .kcard .channel-pills { margin-top:6px; display:flex; gap:3px; flex-wrap:wrap; }
+  .kcard .ch-pill { font-size:10px; padding:2px 7px; border-radius:10px;
+    border:1px solid #d1d5db; background:#f9fafb; color:#6b7280;
+    cursor:pointer; user-select:none; line-height:1.3; transition:all .12s; }
+  .kcard .ch-pill:hover { border-color:#1d4ed8; color:#1d4ed8; }
+  .kcard .ch-pill.sent { background:#15803d; color:#fff; border-color:#15803d; }
+  .kcard .ch-pill.sent:hover { background:#dcfce7; color:#166534;
+    border-color:#15803d; }
+  .kcard .ch-pill.disabled { opacity:.4; cursor:not-allowed; }
+  .kcard .ch-pill.disabled:hover { border-color:#d1d5db; color:#6b7280; }
   .kcard .hook { color:#374151; font-size:11px; margin-top:4px;
     font-style:italic; max-height:38px; overflow:hidden;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
@@ -152,6 +162,30 @@
     border-radius:4px; font-size:11px; cursor:pointer; margin-left:6px; }
   .kmodal-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
   .kmodal-actions .kbtn { padding:8px 14px; font-size:13px; }
+
+  .kmodal-pills { display:flex; flex-wrap:wrap; gap:6px; }
+  .ch-pill-lg { display:inline-flex; align-items:center; gap:4px;
+    padding:6px 12px; border-radius:18px; font-size:13px;
+    border:1px solid #d1d5db; background:#f9fafb; color:#374151;
+    cursor:pointer; user-select:none; transition:all .12s;
+    line-height:1.3; }
+  .ch-pill-lg small { font-size:10px; color:#9ca3af; margin-left:4px; }
+  .ch-pill-lg:hover { border-color:#1d4ed8; color:#1d4ed8; }
+  .ch-pill-lg.sent { background:#15803d; color:#fff; border-color:#15803d; }
+  .ch-pill-lg.sent small { color:rgba(255,255,255,.8); }
+  .ch-pill-lg.sent:hover { background:#dcfce7; color:#166534; border-color:#15803d; }
+  .ch-pill-lg.sent:hover small { color:#15803d; }
+  .ch-pill-lg.disabled { opacity:.4; cursor:not-allowed; }
+  .ch-pill-lg.disabled:hover { border-color:#d1d5db; color:#374151; }
+
+  .ktimeline { list-style:none; padding:0; margin:0; }
+  .ktimeline li { padding:6px 0; border-bottom:1px solid #f1f5f9;
+    display:grid; grid-template-columns:120px 1fr; gap:10px; font-size:13px; }
+  .ktimeline li:last-child { border-bottom:none; }
+  .ktimeline li.reply { background:#f0fdf4; padding:6px 8px;
+    border-radius:4px; border-bottom-color:transparent; }
+  .ktimeline-when { color:#6b7280; font-size:12px; }
+  .ktimeline-what small { color:#6b7280; }
 </style>
 {% endblock %}
 
@@ -211,6 +245,7 @@
               {% if c.fund_score %}<span class="badge">{{ c.fund_score }}</span>{% endif %}
               {% if c.confidence == "high" %}<span class="badge high">high</span>{% endif %}
               {% if c.person.assigned_to %}<span class="badge">{{ c.person.get_assigned_to_display }}</span>{% endif %}
+              {% if c.sent_count %}<span class="badge high">{{ c.sent_count }} sent</span>{% endif %}
               {% if not c.has_channel %}<span class="badge warn">no channel</span>{% endif %}
               {% if not c.has_draft %}<span class="badge warn">no draft</span>{% endif %}
             </div>
@@ -221,6 +256,15 @@
               {% if c.twitter_url %}<a class="ch-dot alt" href="{{ c.twitter_url }}" target="_blank">X</a>{% endif %}
               {% if c.person.email %}<a class="ch-dot alt" href="mailto:{{ c.person.email }}" target="_blank">@</a>{% endif %}
               <a class="ch-dot alt" href="/admin/investors/person/{{ c.person.id }}/change/" target="_blank">edit</a>
+            </div>
+            <div class="channel-pills" data-pills-for="{{ c.person.id }}">
+              {% for s in c.channel_states %}
+                <span class="ch-pill {% if s.sent %}sent{% endif %} {% if not s.available %}disabled{% endif %}"
+                      data-channel="{{ s.key }}"
+                      title="{% if s.sent %}{{ s.label }} sent{% if s.sent_at %} {{ s.sent_at|date:'M j' }}{% endif %} - click to undo{% else %}{% if s.available %}Mark {{ s.label }} as sent{% else %}{{ s.label }} channel not available — add it on the Person admin first{% endif %}{% endif %}">
+                  {% if s.sent %}✓{% else %}+{% endif %} {{ s.label }}
+                </span>
+              {% endfor %}
             </div>
             {% if c.hook %}<div class="hook">{{ c.hook }}</div>{% endif %}
             <div class="meta">
@@ -267,6 +311,7 @@
 <script>
 (function() {
   const MOVE_URL = "{{ move_url|escapejs }}";
+  const TOUCH_URL = "{{ touch_url|escapejs }}";
   const CSRF = (function() {
     const m = document.cookie.match(/csrftoken=([^;]+)/);
     return m ? m[1] : "";
@@ -334,7 +379,7 @@
       animation: 140,
       ghostClass: 'ghost-drop',
       dragClass: 'dragging',
-      filter: '.fund-card, a, button',
+      filter: '.fund-card, .ch-pill, a, button',
       preventOnFilter: false,
       onEnd: function(evt) {
         const card = evt.item;
@@ -343,21 +388,111 @@
         const toCol = evt.to.dataset.col;
         if (fromCol === toCol) return;
         const personId = card.dataset.personId;
-        let channel = "";
-        if (toCol === "sent") {
-          const suggested = card.dataset.suggestedChannel || "";
-          channel = prompt(
-            "Confirm channel used for outreach (form / email / li_dm / x_dm / intro / other):",
-            suggested || "email"
-          );
-          if (channel === null) {
-            evt.from.appendChild(card);
-            return;
-          }
-        }
-        move(personId, toCol, channel, card, fromCol);
+        // No prompt - server will create an OutreachEvent with the
+        // suggested channel if there's none yet. Channels are otherwise
+        // toggled per pill on the card.
+        move(personId, toCol, "", card, fromCol);
       },
     });
+  });
+
+  /* ---------------- Channel pills (toggle outreach event) ---------------- */
+  function togglePill(pill, personId, channel) {
+    if (pill.classList.contains('disabled')) {
+      flash('No ' + channel + ' contact on file. Edit person first.', false);
+      return;
+    }
+    pill.style.opacity = '0.5';
+    pill.style.pointerEvents = 'none';
+    fetch(TOUCH_URL, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+      body: JSON.stringify({ person_id: personId, channel: channel }),
+    })
+      .then(r => r.json().then(j => ({ status: r.status, body: j })))
+      .then(({ status, body }) => {
+        if (!body.ok) throw new Error(body.error || 'Failed');
+        rerenderPills(personId, body.all_states);
+        // Move card to the column the server says it now belongs to.
+        const card = document.querySelector('.kcard[data-person-id="' + personId + '"]');
+        if (card) {
+          const target = document.querySelector('.sortable[data-col="' + body.column + '"]');
+          if (target && card.parentNode !== target) {
+            target.prepend(card);
+          }
+          updateSentBadge(card, body.sent_count);
+        }
+        updateCounts();
+        flash(body.sent ? '✓ ' + channel + ' marked sent' : channel + ' undone');
+      })
+      .catch(err => {
+        flash('Failed: ' + err.message, false);
+      })
+      .finally(() => {
+        pill.style.opacity = '';
+        pill.style.pointerEvents = '';
+      });
+  }
+
+  function rerenderPills(personId, states) {
+    document.querySelectorAll(
+      '.channel-pills[data-pills-for="' + personId + '"], .kmodal-pills[data-pills-for="' + personId + '"]'
+    ).forEach(container => {
+      const isModal = container.classList.contains('kmodal-pills');
+      container.innerHTML = '';
+      states.forEach(s => {
+        const pill = document.createElement('span');
+        pill.className = isModal ? 'ch-pill-lg' : 'ch-pill';
+        if (s.sent) pill.classList.add('sent');
+        if (!s.available) pill.classList.add('disabled');
+        pill.dataset.channel = s.key;
+        const symbol = s.sent ? '✓ ' : '+ ';
+        if (isModal && s.sent && s.sent_at) {
+          pill.innerHTML = symbol + s.label + ' <small>' +
+            new Date(s.sent_at).toLocaleDateString(undefined, {month:'short', day:'numeric'}) + '</small>';
+        } else {
+          pill.textContent = symbol + s.label;
+        }
+        if (s.sent && s.sent_at) {
+          pill.title = s.label + ' sent ' + new Date(s.sent_at).toLocaleDateString() + ' - click to undo';
+        } else if (!s.available) {
+          pill.title = s.label + ' channel not available - add it on the Person admin first';
+        } else {
+          pill.title = 'Mark ' + s.label + ' as sent';
+        }
+        container.appendChild(pill);
+      });
+    });
+  }
+
+  function updateSentBadge(card, sentCount) {
+    const badges = card.querySelector('.badges');
+    if (!badges) return;
+    let badge = badges.querySelector('.badge.sent-count');
+    if (sentCount > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'badge high sent-count';
+        badges.appendChild(badge);
+      }
+      badge.textContent = sentCount + ' sent';
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+
+  // Delegated click handler for pills (works after rerender too).
+  document.addEventListener('click', e => {
+    const pill = e.target.closest('.ch-pill, .ch-pill-lg');
+    if (!pill) return;
+    const container = pill.closest('.channel-pills, .kmodal-pills');
+    if (!container) return;
+    const personId = container.dataset.pillsFor;
+    if (!personId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    togglePill(pill, personId, pill.dataset.channel);
   });
 
   /* ---------------- Modal ---------------- */
